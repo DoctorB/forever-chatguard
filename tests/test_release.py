@@ -94,7 +94,7 @@ class ReleaseTests(unittest.TestCase):
     def test_gate_closed_by_default(self):
         with self.assertRaises(release.ReleaseError) as caught:
             release.check_gate(self.tmp)
-        self.assertIn("payload", str(caught.exception))
+        self.assertIn("release-gate", str(caught.exception))
 
     def test_gate_opens_only_with_all_flags_and_marker(self):
         self.open_gate()

@@ -108,8 +108,10 @@ T.Case("compatibility flags match the docs", function()
   T.Eq(tostring(ns.Adapters.Forever.COMPAT.interface), T.TocField("Interface"))
 end)
 
+local NONE_VERIFIED = { filterApi = false, payload = false, lineId = false, eventFrame = false }
+
 T.Case("unverified client: observes through an event frame, filter mode refused", function()
-  local _, env, runtime = start()
+  local _, env, runtime = start({ verified = NONE_VERIFIED })
   T.Ok(runtime.adapter.caps.filterApiPresent)
   T.NotOk(runtime.adapter.caps.filter)
   T.Eq(next(env.filters), nil, "no chat filter registered while unverified")
@@ -208,7 +210,7 @@ T.Case("secret payload values are never analysed and never hidden", function()
 end)
 
 T.Case("no filter API: observation only, explained once", function()
-  local ns, env, runtime = start({ noFilterApi = true })
+  local ns, env, runtime = start({ noFilterApi = true, verified = NONE_VERIFIED })
   T.NotOk(runtime.adapter.caps.filterApiPresent)
   T.NotOk(runtime.adapter.caps.filter)
   T.Eq(next(env.filters), nil)

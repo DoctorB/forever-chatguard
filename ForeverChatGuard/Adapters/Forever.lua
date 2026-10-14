@@ -21,8 +21,8 @@ Adapter.COMPAT = {
   interface = 16001,
   verified = {
     filterApi = true,        -- ChatFrame message filter: exists, signature, hide semantics
-    payload = false,         -- CHAT_MSG_* layout/readability: Say verified, channels not yet
-    lineId = false,          -- unique per line verified; sharing across windows not yet
+    payload = true,          -- CHAT_MSG_* layout and readability (Say and channels)
+    lineId = true,           -- unique per line and shared by every chat-window callback
     eventFrame = true,       -- RegisterEvent delivery of CHAT_MSG_* to an addon frame
   },
 }

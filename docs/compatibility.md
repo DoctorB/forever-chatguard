@@ -1,9 +1,9 @@
 # Compatibilità con WoW Forever
 
-Stato: **integrazione parzialmente verificata**. Il gate del client (spec §3)
-non è ancora superato: nessuna release installabile può essere pubblicata.
+Stato: **capability verificate** sul client (spec §3). Il rilascio resta
+chiuso finché la checklist manuale (`docs/manual-tests.md`) non è completa.
 
-<!-- compat: filterApi=true payload=false lineId=false eventFrame=true -->
+<!-- compat: filterApi=true payload=true lineId=true eventFrame=true -->
 <!-- release-gate: closed -->
 
 I due commenti sopra sono letti da `tests/test_adapter.lua` e da
@@ -15,7 +15,8 @@ portato a `true` solo insieme all'evidenza registrata in questo file.
 
 | Data | Build | Metodo | Esecutore |
 | --- | --- | --- | --- |
-| 2026-10-14 | 1.60.1.70374 (`GetBuildInfo`, compilata il 12 ottobre 2026) | Probe `tools/ForeverChatGuardProbe` 0.1.0 + ChatGuard 0.1.0-alpha.1 in osservazione, realm `Classic Beta PvE`, personaggio di livello 10, fuori istanza, client enUS | proprietario del progetto; file `ForeverChatGuardProbe.lua` e screenshot del pannello letti da ChatGuard |
+| 2026-10-14 (1) | 1.60.1.70374 (`GetBuildInfo`, compilata il 12 ottobre 2026) | Probe `tools/ForeverChatGuardProbe` 0.1.0 + ChatGuard 0.1.0-alpha.1 in osservazione, realm `Classic Beta PvE`, personaggio di livello 10, fuori istanza, client enUS | proprietario del progetto; file `ForeverChatGuardProbe.lua` e screenshot del pannello |
+| 2026-10-14 (2) | 1.60.1.70374 | Stesso setup + test guidato `/fcgprobe auto` nel canale privato `fcgprobetest` con una seconda finestra chat «Probe»; messaggi reali di altri giocatori in General - Elwynn Forest | proprietario del progetto; `ForeverChatGuardProbe.lua` (load 4) e screenshot `probe_debug` |
 
 ## Target
 
@@ -32,14 +33,15 @@ portato a `true` solo insieme all'evidenza registrata in questo file.
 
 | Capability | Flag | Stato | Evidenza / limite |
 | --- | --- | --- | --- |
-| Filtro messaggi | `filterApi` | **verificato** (Say, una finestra) | `ChatFrame_AddMessageEventFilter`/`Remove...` e `ChatFrameUtil.AddMessageEventFilter`/`Remove...` presenti. Registrazione su `CHAT_MSG_CHANNEL`, `SAY`, `YELL` → `ok`, nessun `ADDON_ACTION_FORBIDDEN/BLOCKED`. `return true` ha nascosto `fcgprobe-hide tre` (assente nella chat dello screenshot); `return false` senza altri valori ha lasciato visibili e invariate le righe `fcgprobe-pass` |
-| Payload `CHAT_MSG_SAY` | `payload` (parziale) | verificato | 18 argomenti. 1 testo `string` non secret; 2 autore `string` non secret, **senza reame e con uno spazio** (nome + cognome, es. `Uorriora Uorrior`); 5 autore ripetuto; 7 zoneChannelID `0`; 8 `0`; 9 `""`; 10 languageID `7`; 11 lineID `number`; 12 GUID `Player-…`; 13 `number`; 14–17 `boolean`; 18 `table` |
-| Payload `CHAT_MSG_CHANNEL` | `payload` | **non verificato** | Nessun messaggio di canale catturato: i messaggi di prova sono andati in Say. Serve per zoneChannelID, channelBaseName e chiavi canale |
-| Payload `CHAT_MSG_YELL` | — | non verificato | — |
-| Identità consegna (`lineID`) | `lineId` (parziale) | unicità verificata | Valori 6, 7, 8, 9, 36 tutti distinti, anche per due testi identici (7 e 8). **Da verificare:** stesso `lineID` per tutte le callback quando più finestre chat mostrano il canale (catturata una sola finestra, `ChatFrame1`) |
-| Consegna a frame addon | `eventFrame` | **verificato** | Un `OnEvent` per messaggio (`frameEvents = 1` per ogni linea) |
+| Filtro messaggi | `filterApi` | **verificato** | `ChatFrame_AddMessageEventFilter`/`Remove...` e `ChatFrameUtil.AddMessageEventFilter`/`Remove...` presenti. Registrazione su `CHAT_MSG_CHANNEL`, `SAY`, `YELL` → `ok`, nessun `ADDON_ACTION_FORBIDDEN/BLOCKED`. `return true` nasconde la riga (`fcgprobe-hide tre` assente in Say e nel canale, in entrambe le finestre); `return false` senza altri valori lascia le righe visibili e invariate |
+| Payload `CHAT_MSG_SAY` | `payload` | **verificato** | 18 argomenti. 1 testo `string`; 2 autore `string` **senza reame, con uno spazio** (nome + cognome); 5 autore ripetuto; 7 zoneChannelID `0`; 8 `0`; 9 `""`; 10 languageID; 11 lineID `number`; 12 GUID `Player-…`; 13 `number`; 14–17 `boolean`; 18 `table` |
+| Payload `CHAT_MSG_CHANNEL` | `payload` | **verificato** | Messaggi di altri giocatori in General: testo e autore non secret, autore senza reame; 4 nome numerato del canale; 7 zoneChannelID `1`; 8 indice canale `1`; 9 channelBaseName `General - Elwynn Forest` (contiene la zona: per questo la chiave usa zoneChannelID); 11 lineID |
+| Payload `CHAT_MSG_YELL` | — | non verificato | Stesso gestore di Say nel client; non catturato |
+| Identità consegna (`lineID`) | `lineId` | **verificato** | Unico per messaggio (anche per testi identici). Il filtro viene chiamato **una volta per ogni chat frame registrato (10, anche nascosti) con lo stesso `lineID`**; `frameEvents = 1`. Da qui la cache decisioni per `evento:lineID` |
+| Consegna a frame addon | `eventFrame` | **verificato** | Un `OnEvent` per messaggio |
+| Chiave canale | — | **verificata** | La chiave da `C_ChatInfo.GetChannelInfoFromIdentifier` (`zone:1` per General) coincide con quella derivata dai messaggi; canale privato `custom:fcgprobetest` selezionato per nome e analizzato |
 | Valori secret nella chat | — | assenti fuori istanza | Nessun argomento secret in 5 campioni. Istanze/encounter non provati |
-| API canali | — | presenti, forma non verificata | `GetChannelList`, `GetChannelName`, `C_ChatInfo.GetChannelInfoFromIdentifier`, `C_ChatInfo.GetChannelShortcut` sono funzioni. L'adapter le usa con controlli di tipo e ripiega sui canali visti nei messaggi |
+| API canali | — | **verificate per l'uso fatto** | `GetChannelList` + `C_ChatInfo.GetChannelInfoFromIdentifier` restituiscono i canali entrati con `zoneChannelID`; l'adapter mantiene i controlli di tipo |
 | Template UI | — | **verificato** | `UIPanelButtonTemplate`, `UICheckButtonTemplate`, `InputBoxTemplate`, `BasicFrameTemplateWithInset`, `BackdropTemplate` creati senza errori |
 | Slash command, SavedVariables | — | **verificato** | `/fcg` e `/fcgprobe` risposti; `ForeverChatGuard.lua` e `ForeverChatGuardProbe.lua` scritti dal client in `WTF\Account\<account>\SavedVariables\` |
 | Altre API | — | presenti | `issecretvalue`, `canaccessvalue`, `canaccesstable`, `GetTime`, `GetTimePreciseSec`, `UnitName`, `UnitGUID`, `GetNormalizedRealmName`, `C_Timer`, `Settings`, `UISpecialFrames`, `InCombatLockdown`, `date` |
@@ -54,21 +56,22 @@ I test offline usano mock e non sono prova di compatibilità.
   (prima venivano rifiutati e ogni messaggio risultava non analizzabile).
 - Layout del pannello ricostruito (allineamento, testo dentro la cornice,
   canali selezionabili con checkbox); controllato da `tests/test_panel.lua`.
+- Il probe creava un `EditBox` visibile che catturava la tastiera: ora i
+  widget di prova sono nascosti; test statico su `SetAutoFocus(false)`.
 
 ## Comportamento attuale
 
-- Filtro: non registrato finché `payload` non è verificato anche per i canali.
-  `/fcg filter` viene rifiutato con spiegazione.
-- Osservazione via frame eventi sui soli canali selezionati.
+- Osservazione via frame eventi sui canali selezionati (primo avvio).
+- `/fcg filter` disponibile: filtro registrato, decisione unica per
+  `evento:lineID` in tutte le finestre, regole duplicati/raffiche attive.
 - Valori secret: messaggio ignorato, contatore `unreadable`, nessun errore.
 
-## Prove mancanti per aprire il gate
+## Prima della release
 
-1. Messaggi `fcgprobe-pass …` e `fcgprobe-hide …` inviati **nel canale**
-   `fcgprobetest` (scrivendo `/<numero del canale> testo`, non in Say).
-2. Lo stesso con **due finestre chat** che mostrano quel canale.
-3. `/reload` e `/fcgprobe` (`loads 2`).
-4. Facoltativo: un messaggio in un'istanza per i valori secret.
+- Completare `docs/manual-tests.md` (in particolare: modalità filtro reale,
+  cambio zona, reload/logout, pannello in combattimento, altro addon chat).
+- Facoltativo: un messaggio in un'istanza per verificare i valori secret.
+- Poi portare il marcatore `release-gate` in testa al file da `closed` a `open`.
 
 ## Limiti noti
 
