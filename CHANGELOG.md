@@ -3,17 +3,39 @@
 All notable changes to Forever ChatGuard. Versions follow `MAJOR.MINOR.PATCH`;
 pre-releases carry an explicit `-alpha.N` / `-beta.N` suffix.
 
-## 0.1.0-alpha.1 - unreleased prototype
+## 1.0.0 - 2026-10-14
 
-**Integration not verified on the WoW Forever client.** Not published.
+**First release for WoW Forever.** Keep public chat readable without losing a
+single real conversation.
 
-- Deterministic local engine: per-channel duplicate windows, optional burst
-  limit, literal player terms, local allow and block lists, fixed rule priority.
-- Observe mode on first start; nothing is hidden until filter mode is enabled
-  on a client whose chat filter has been verified.
-- Session quarantine with reasons, local text view and "allow author".
-- Validated settings with sequential migrations; newer schemas are never
-  overwritten; chat text is never written to disk.
-- Fail-open behaviour and a circuit breaker after repeated internal errors.
-- English and Italian interface with English fallback.
-- `/fcg` commands and a basic settings panel.
+### New
+
+- **Observe first:** on first start nothing is hidden. ChatGuard lists what it
+  would hide, so you can judge it before turning filtering on.
+- **Repeated messages:** the same text from the same player in the same channel
+  within 30 seconds (5–120) is hidden. Prices and item links count, so
+  "10g" and "100g" are different messages.
+- **Burst limit** (off by default): more than 5 messages in 10 seconds from one
+  player in one channel.
+- **Your own terms** (off by default): literal words or phrases, with a preview.
+  No built-in word list.
+- **Allow and block lists** for authors, including names with a surname.
+- **Quarantine:** every hidden message stays viewable for the session with time,
+  channel, author and reason; show the full text or allow the author in one click.
+- **Channel choice** in the settings panel: Trade, General, custom channels,
+  Say and Yell. Whispers, party, raid, guild and system messages are never touched.
+- **One decision per message**, however many chat windows show it.
+- English and Italian interface.
+
+### Safety
+
+- No network, telemetry, automatic messages or reports; chat text is never
+  saved to disk.
+- If anything goes wrong inside the addon, messages are shown as usual.
+  After repeated internal errors filtering pauses until `/fcg on`.
+
+### Compatibility
+
+WoW Forever 1.60.1 (Interface 16001).
+
+Author: DoctorB

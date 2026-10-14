@@ -5,11 +5,7 @@ Local, transparent and reversible noise control for **public chat** in
 literal terms that *you* choose, while keeping normal conversation, group
 calls and legitimate trading visible.
 
-> **Status: 0.1.0-alpha.1, integration not verified.** The engine and its
-> tests are complete, but the chat APIs of the WoW Forever client have not
-> been verified in game yet (see [docs/compatibility.md](docs/compatibility.md)).
-> Until then ChatGuard can only *observe*; it never hides anything, and no
-> release is published.
+**Version 1.0.0** for WoW Forever 1.60.1 (Interface 16001).
 
 ## What it does
 
@@ -40,7 +36,8 @@ automatic reports or messages. Chat text is never saved to disk.
    `World of Warcraft\_classic_beta_\Interface\AddOns\`, so that the folder
    `ForeverChatGuard\` sits directly inside `AddOns`.
 2. Restart the game or `/reload`. Type `/fcg status`.
-3. Select channels with `/fcg channel list` and `/fcg channel add <n>`.
+3. Open `/fcg config` and tick the channels to watch (or `/fcg channel add Trade`).
+4. Check `/fcg quarantine` for a while, then switch to filtering with `/fcg filter`.
 
 The `_classic_beta_` folder is where the WoW Forever beta client is installed
 today; the folder for the live game may differ.
@@ -52,14 +49,14 @@ today; the folder for the live game may differ.
 | `/fcg`, `/fcg help` | Short help |
 | `/fcg status` | State, mode, compatibility, counters |
 | `/fcg on` / `/fcg off` | Enable / disable immediately |
-| `/fcg observe` / `/fcg filter` | Switch mode (filter needs a verified client) |
+| `/fcg observe` / `/fcg filter` | Only watch, or actually hide |
 | `/fcg config` | Open the panel |
-| `/fcg quarantine` | List held or observed messages |
+| `/fcg quarantine` | Open the quarantine window (`/fcg quarantine list` prints it) |
 | `/fcg show <n>` / `/fcg allowentry <n>` | Full text / allow that author |
 | `/fcg clear` | Empty the quarantine |
-| `/fcg channel list` / `add <n>` / `remove <n>` | Choose channels |
+| `/fcg channel list` / `add <n or name>` / `remove <n or name>` | Choose channels |
 | `/fcg term add/remove/preview/on/off <text>` | Literal terms |
-| `/fcg allow`, `block`, `unallow`, `unblock <Name-Realm>` | Author lists |
+| `/fcg allow`, `block`, `unallow`, `unblock <Name>` | Author lists (`Name Surname` works; realm optional) |
 | `/fcg dup on/off/<seconds>` | Repeated-text rule |
 | `/fcg flood on/off` or `/fcg flood <seconds> <messages>` | Burst rule |
 | `/fcg reset`, then `/fcg reset confirm` | Restore defaults |
@@ -67,19 +64,18 @@ today; the folder for the live game may differ.
 ## Settings and uninstall
 
 Settings are account-wide in `ForeverChatGuardDB`, stored by the client in
-`WTF\Account\<ACCOUNT>\SavedVariables\ForeverChatGuard.lua` (path not yet
-verified on the target). Only preferences and your lists are saved.
+`WTF\Account\<ACCOUNT>\SavedVariables\ForeverChatGuard.lua`. Only preferences
+and your lists are saved.
 
 To uninstall, delete `Interface\AddOns\ForeverChatGuard\` and, optionally,
 that `ForeverChatGuard.lua` settings file.
 
 ## Limits
 
-- The WoW Forever client is a beta with Midnight-era addon restrictions.
-  Where chat arguments are *secret* values, ChatGuard cannot read them and
-  leaves those messages unchanged.
-- Duplicate and burst rules in filter mode need a verified per-message ID;
-  without it they are disabled and `/fcg status` says so.
+- WoW Forever restricts what addons can read in some situations. Where chat
+  arguments are *secret* values, ChatGuard cannot read them and leaves those
+  messages unchanged.
+- Your own messages are never filtered.
 - After three internal errors within 60 s, filtering is suspended for the
   session (`/fcg on` resumes). Errors never hide a message.
 

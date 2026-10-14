@@ -8,6 +8,10 @@ mai generare spam nei canali pubblici.
 Stato attuale: **parziale** (build 1.60.1.70374, 2026-10-14, proprietario del
 progetto, con probe e screenshot). Restano le voci segnate «da eseguire».
 
+**Decisione del proprietario (2026-10-14):** la 1.0.0 viene pubblicata con
+questa checklist parziale; le voci aperte saranno chiuse con le segnalazioni
+degli utenti (issue GitHub) e con le versioni successive.
+
 | # | Verifica | Esito atteso | Build | Data | Esito |
 | --- | --- | --- | --- | --- | --- |
 | 1 | Installazione pulita, caricamento | Nessun errore Lua; `/fcg status` risponde | 70374 | 2026-10-14 | ✅ nessun errore; `/fcg` risponde. Il blocco tastiera era del probe (corretto) |

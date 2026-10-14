@@ -1,10 +1,12 @@
 # Compatibilità con WoW Forever
 
-Stato: **capability verificate** sul client (spec §3). Il rilascio resta
-chiuso finché la checklist manuale (`docs/manual-tests.md`) non è completa.
+Stato: **capability verificate** sul client (spec §3). Rilascio 1.0.0
+autorizzato dal proprietario del progetto il 2026-10-14 con la checklist
+manuale parziale: le voci aperte di `docs/manual-tests.md` saranno chiuse con
+le segnalazioni degli utenti.
 
 <!-- compat: filterApi=true payload=true lineId=true eventFrame=true -->
-<!-- release-gate: closed -->
+<!-- release-gate: open -->
 
 I due commenti sopra sono letti da `tests/test_adapter.lua` e da
 `scripts/release.py check-gate`. Ogni flag deve coincidere con
@@ -66,12 +68,13 @@ I test offline usano mock e non sono prova di compatibilità.
   `evento:lineID` in tutte le finestre, regole duplicati/raffiche attive.
 - Valori secret: messaggio ignorato, contatore `unreadable`, nessun errore.
 
-## Prima della release
+## Limiti aperti alla 1.0.0
 
-- Completare `docs/manual-tests.md` (in particolare: modalità filtro reale,
-  cambio zona, reload/logout, pannello in combattimento, altro addon chat).
-- Facoltativo: un messaggio in un'istanza per verificare i valori secret.
-- Poi portare il marcatore `release-gate` in testa al file da `closed` a `open`.
+- Non provati in gioco: modalità filtro reale di ChatGuard, raffiche e termini,
+  cambio zona, pannello in combattimento, convivenza con altri addon chat,
+  item link e accenti, messaggi in istanza (valori secret).
+- Decisione del proprietario (2026-10-14): pubblicare e raccogliere i problemi
+  dagli utenti; ogni segnalazione aggiorna `docs/manual-tests.md`.
 
 ## Limiti noti
 

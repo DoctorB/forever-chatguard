@@ -3,7 +3,7 @@
 ## Notes: Local, transparent and reversible public chat noise filter for WoW Forever. Starts in observe mode.
 ## Notes-itIT: Filtro locale, trasparente e reversibile del rumore nella chat pubblica per WoW Forever. Si avvia in osservazione.
 ## Author: DoctorB
-## Version: 0.1.0-alpha.1
+## Version: 1.0.0
 ## SavedVariables: ForeverChatGuardDB
 
 Bootstrap.lua

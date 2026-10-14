@@ -2,6 +2,7 @@
 import importlib.util
 import io
 import json
+import re
 from pathlib import Path
 import shutil
 import tempfile
@@ -48,11 +49,18 @@ class ReleaseTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp)
 
-    def open_gate(self):
+    def set_gate(self, flags, marker):
         path = self.tmp / "docs" / "compatibility.md"
         text = path.read_text(encoding="utf-8")
-        text = text.replace("=false", "=true").replace("<!-- release-gate: closed -->", "<!-- release-gate: open -->")
+        text = re.sub(r"<!-- compat:.*?-->", "<!-- compat: " + flags + " -->", text, flags=re.S)
+        text = re.sub(r"<!-- release-gate: \w+ -->", "<!-- release-gate: " + marker + " -->", text)
         path.write_text(text, encoding="utf-8")
+
+    def open_gate(self):
+        self.set_gate("filterApi=true payload=true lineId=true eventFrame=true", "open")
+
+    def close_gate(self):
+        self.set_gate("filterApi=true payload=false lineId=true eventFrame=true", "closed")
 
     def test_package_has_single_root_and_only_needed_files(self):
         manifest = release.package(self.tmp, self.tmp / "out")
@@ -91,16 +99,23 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(interface, "16001")
         self.assertEqual(game_version, "1.60.1")
 
-    def test_gate_closed_by_default(self):
+    def test_gate_closed_names_missing_capabilities(self):
+        self.close_gate()
         with self.assertRaises(release.ReleaseError) as caught:
             release.check_gate(self.tmp)
-        self.assertIn("release-gate", str(caught.exception))
+        self.assertIn("payload", str(caught.exception))
+
+    def test_gate_needs_open_marker_even_with_all_flags(self):
+        self.set_gate("filterApi=true payload=true lineId=true eventFrame=true", "closed")
+        with self.assertRaises(release.ReleaseError):
+            release.check_gate(self.tmp)
 
     def test_gate_opens_only_with_all_flags_and_marker(self):
         self.open_gate()
         release.check_gate(self.tmp)
 
     def test_upload_refused_while_gate_closed_without_network(self):
+        self.close_gate()
         release.package(self.tmp, self.tmp / "out")
         opener = FakeOpener({})
         with self.assertRaises(release.ReleaseError):
@@ -132,7 +147,8 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(receipt["fileId"], 4242)
         upload_request = opener.requests[-1]
         self.assertEqual(upload_request.get_header("X-api-token"), "token")
-        self.assertIn(b'"releaseType": "alpha"', upload_request.data)
+        expected = "alpha" if "-alpha." in manifest["version"] else ("beta" if "-beta." in manifest["version"] else "release")
+        self.assertIn(('"releaseType": "%s"' % expected).encode(), upload_request.data)
         with self.assertRaises(release.ReleaseError):
             release.upload(self.tmp, self.tmp / "out", "token", "123", opener=opener)
 

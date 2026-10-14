@@ -23,7 +23,7 @@ Hides the same text from the same player in the same channel within 30 seconds (
 Hides messages from a player who sends more than 5 messages in 10 seconds in one channel. Both numbers are adjustable.
 
 ### ✏️ Your own terms *(optional)*
-Add words or phrases you never want to see. They are matched literally and ignore upper/lower case. A preview shows what a term would catch before you turn it on.
+Add words or phrases you never want to see. They are matched literally and ignore upper/lower case. A preview checks a term against the messages already in your quarantine before you turn it on.
 ChatGuard ships with **no built-in list**: words like WTS, LFG or gold are never filtered unless you add them yourself.
 
 ### 👥 Allow and block lists
@@ -48,8 +48,8 @@ The interface follows your game language, with English as the fallback.
 ## Getting started
 
 1. Install and log in. ChatGuard starts in **observe** mode.
-2. Type `/fcg channel list`, then `/fcg channel add <number>` for the channels to watch.
-3. Chat as usual, then open `/fcg quarantine` to see what would have been hidden.
+2. Type `/fcg config` and tick the channels to watch, for example Trade and General.
+3. Play as usual, then open `/fcg quarantine` to see what would have been hidden and why.
 4. Happy with it? Type `/fcg filter` to start hiding. `/fcg off` turns everything off instantly.
 
 ## Commands
@@ -64,12 +64,57 @@ The interface follows your game language, with English as the fallback.
 | `/fcg quarantine` | List hidden messages |
 | `/fcg show <n>` · `/fcg allowentry <n>` | Full text of an entry · allow its author |
 | `/fcg clear` | Empty the quarantine |
-| `/fcg channel list` · `add <n>` · `remove <n>` | Choose channels |
+| `/fcg channel list` · `add <n or name>` · `remove <n or name>` | Choose channels |
 | `/fcg term add <text>` · `remove` · `preview` · `on` · `off` | Manage your terms |
-| `/fcg allow <Name-Realm>` · `/fcg block <Name-Realm>` | Author lists (`unallow` / `unblock` to remove) |
+| `/fcg allow <Name>` · `/fcg block <Name>` | Author lists, e.g. `/fcg block Mira Stonefist` (`unallow` / `unblock` to remove) |
 | `/fcg dup on` · `off` · `<seconds>` | Repeated-message rule |
 | `/fcg flood on` · `off` · `<seconds> <messages>` | Burst rule |
 | `/fcg reset` | Restore defaults (asks for confirmation) |
+
+## FAQ
+
+**I installed it and nothing is hidden. Is it working?**
+Yes. ChatGuard starts in *observe* mode and watches no channel until you pick one. Open `/fcg config`, tick Trade or General, and after a while `/fcg quarantine` shows what it *would* have hidden. When you agree with what you see, type `/fcg filter`.
+
+**What exactly counts as a repeated message?**
+The same player, in the same channel, posting the same text within 30 seconds.
+Example: a player posts `WTS [Copper Bar] x20, 5g each` at 12:00:00 and again at 12:00:10 and 12:00:20. You see the first one; the next two are hidden. At 12:00:30 the window has passed, so the next copy is shown once more and a new 30-second window starts. Hidden copies never extend the window, so a player who keeps advertising is still seen about twice a minute, not never.
+
+**Will it hide a normal "LFG Deadmines" from two different players?**
+No. Repeats are counted per player: two people asking the same thing are two different messages. The same text in Trade and in General is also treated separately.
+
+**The same advert, but with a different price?**
+Shown. `WTS bag 10g` and `WTS bag 100g` are different messages. Different items with the same name are different too, because ChatGuard compares the item link, not just its visible name. Only colours, extra spaces and upper/lower case are ignored.
+
+**What does the burst limit do?**
+It catches a player who floods one channel with many *different* messages. With the default (more than 5 messages in 10 seconds), the 6th message inside those 10 seconds is hidden. It is off by default; enable it in the panel or with `/fcg flood on`.
+
+**I added the term "gold" and now "golden" is hidden too. Why?**
+Terms match anywhere in the message, also inside longer words, so "gold" also matches "golden" and "marigold". Use a longer phrase, for example `cheap gold`, and check it with `/fcg term preview cheap gold`, which tests it against the messages in your quarantine.
+
+**Does ChatGuard hide words like WTS, LFG or boost by itself?**
+Never. There is no built-in word list. It only filters what you add.
+
+**I missed something important. Can I get it back?**
+Yes. Open `/fcg quarantine`: every hidden message of the current session is there with time, channel, author and reason. *Show text* displays the full message. *Allow author* means that player is always shown from now on.
+
+**Does it ever touch whispers, party, raid or guild chat?**
+No. Only the public channels you tick (Trade, General, custom channels, Say, Yell). Your own messages are never filtered either.
+
+**A friend keeps getting caught. What do I do?**
+Add them to the allow list: `/fcg allow Mira Stonefist`, or *Allow author* in the quarantine. The allow list always wins, even over the block list.
+
+**Does it report or ignore players in the game?**
+No. ChatGuard never sends messages, reports, invites, and it never changes your in-game ignore list. Everything stays local.
+
+**Some messages are never analysed. Why?**
+In some situations the game does not let addons read chat messages. ChatGuard then simply leaves those messages as they are.
+
+**How do I switch it off quickly?**
+`/fcg off`. Every new message passes immediately. `/fcg on` brings it back with your settings.
+
+**Will it slow my game down?**
+ChatGuard does a small amount of work only when a chat message arrives, and keeps limited data in memory. Message history is cleared at every reload or logout.
 
 ## Good to know
 
