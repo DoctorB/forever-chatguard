@@ -20,8 +20,8 @@ Nessun valore sensibile in questo file: dei secret si leggono solo i nomi.
 | Protezione branch `main` | nessuna | come il modello | nessuna | — |
 | Ruleset (branch/tag) | nessuno | come il modello | nessuno | — |
 | Environment | nessuno | nessuno | nessuno | — |
-| Secret Actions | `CF_API_TOKEN` | `CF_API_TOKEN` | **assente** | Valore non leggibile dal modello: va impostato dall'utente con il token CurseForge |
-| Variabili Actions | nessuna (ID nello script) | `CF_PROJECT_ID` | **assente** | Richiede il progetto CurseForge di Forever ChatGuard; mai l'ID di HC One Button |
+| Secret Actions | `CF_API_TOKEN` | `CF_API_TOKEN` | `CF_API_TOKEN` (impostato dall'utente, 2026-10-14) | Token proprio, non copiato dal modello |
+| Variabili Actions | nessuna (ID nello script) | `CF_PROJECT_ID` | `CF_PROJECT_ID` = 1744553 (2026-10-14) | ID del progetto CurseForge di Forever ChatGuard, non quello di HC One Button |
 | Webhook | nessuno | nessuno | nessuno | Nessun webhook di packaging CurseForge |
 | Deploy key | nessuna | nessuna | nessuna | — |
 | Runner self-hosted | nessuno | nessuno | nessuno | — |
@@ -42,8 +42,4 @@ Nessun valore sensibile in questo file: dei secret si leggono solo i nomi.
 
 1. Decidere se invitare `DrCalibano` (write, come nel modello). In quel caso
    va aggiunto anche all'allowlist di `.github/workflows/release.yml`.
-2. Creare il secret `CF_API_TOKEN` (Settings → Secrets and variables → Actions),
-   ad esempio con `gh secret set CF_API_TOKEN --repo DoctorB/forever-chatguard`
-   in un terminale proprio: il valore viene chiesto senza eco, mai in chat.
-3. Dopo la creazione del progetto CurseForge:
-   `gh variable set CF_PROJECT_ID --repo DoctorB/forever-chatguard --body <id>`.
+2. ~~Secret `CF_API_TOKEN`~~ e ~~variabile `CF_PROJECT_ID`~~: impostati il 2026-10-14.

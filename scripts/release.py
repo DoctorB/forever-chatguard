@@ -5,6 +5,7 @@ Python 3 standard library only. Every command except `upload` is offline.
   python3 scripts/release.py package [--out DIR]     build + verify the ZIP
   python3 scripts/release.py check-version --tag vX   tag/TOC/runtime/changelog agree
   python3 scripts/release.py check-gate               compatibility gate passed
+  python3 scripts/release.py catalog                  read-only CurseForge version lookup
   python3 scripts/release.py upload --out DIR         upload the verified ZIP
 
 The CurseForge token is read only from the CF_API_TOKEN environment variable
@@ -249,9 +250,33 @@ def upload(root, out, token, project_id, opener=None):
     return receipt
 
 
+def catalog(root, token, opener=None):
+    """Read-only: reports which CurseForge game versions could match Forever."""
+    require(token and token.strip(), "Missing CF_API_TOKEN secret")
+    game_version = version_info(root)[2]
+    types = request_json("/game/wow/version-types", token, opener=opener)
+    versions = request_json("/game/wow/versions", token, opener=opener)
+    require(isinstance(types, list) and isinstance(versions, list), "Invalid CurseForge catalog")
+    report(f"Version types ({len(types)}):")
+    for item in types:
+        if isinstance(item, dict):
+            report(f"- {item.get('id')}: {item.get('name')} ({item.get('slug')})")
+    candidates = [v for v in versions if isinstance(v, dict)
+                  and (str(v.get("name", "")).startswith("1.60") or "forever" in str(v).lower())]
+    report(f"Versions named 1.60.* or mentioning Forever ({len(candidates)}):")
+    for item in candidates:
+        report(f"- {item.get('id')}: {item.get('name')} (type {item.get('gameVersionTypeID')})")
+    try:
+        version_id = forever_game_version(types, versions, game_version)
+        report(f"Upload target resolved: WoW Forever {game_version} -> game version id {version_id}.")
+    except ReleaseError as error:
+        report(f"Upload target NOT resolved for {game_version}: {error}")
+    report("Read-only check: nothing was uploaded.")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=("package", "check-version", "check-gate", "upload"))
+    parser.add_argument("command", choices=("package", "check-version", "check-gate", "catalog", "upload"))
     parser.add_argument("--out", default="release/ci")
     parser.add_argument("--tag")
     args = parser.parse_args(argv)
@@ -266,6 +291,8 @@ def main(argv=None):
     elif args.command == "check-gate":
         check_gate(ROOT)
         report("Compatibility gate open: all required capabilities verified in game.")
+    elif args.command == "catalog":
+        catalog(ROOT, os.environ.get("CF_API_TOKEN"))
     else:
         upload(ROOT, out, os.environ.get("CF_API_TOKEN"), os.environ.get("CF_PROJECT_ID", ""))
 

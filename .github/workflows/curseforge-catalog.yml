@@ -1,0 +1,25 @@
+# Manual, read-only: lists CurseForge game versions to confirm that WoW Forever
+# can be targeted. Never builds a release and never uploads.
+name: CurseForge catalog check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  catalog:
+    if: github.repository == 'DoctorB/forever-chatguard' && github.triggering_actor == 'DoctorB'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (Node 24)
+        with:
+          persist-credentials: false
+
+      - name: Read the CurseForge game version catalog
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: python3 -B scripts/release.py catalog

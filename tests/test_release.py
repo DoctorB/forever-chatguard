@@ -150,6 +150,14 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaises(release.ReleaseError):
             release.upload(self.tmp, self.tmp / "out", "t", "abc", opener=FakeOpener({}))
 
+    def test_catalog_is_read_only(self):
+        opener = FakeOpener({
+            "/game/wow/version-types": [{"id": 900, "name": "WoW Forever", "slug": "wow-forever"}],
+            "/game/wow/versions": [{"id": 7, "gameVersionTypeID": 900, "name": "1.60.1"}],
+        })
+        release.catalog(self.tmp, "token", opener=opener)
+        self.assertEqual([r.get_method() for r in opener.requests], ["GET", "GET"])
+
 
 if __name__ == "__main__":
     unittest.main()
