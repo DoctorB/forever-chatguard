@@ -80,3 +80,22 @@ T.Case("no AI tool attribution in distributed metadata", function()
   end
   T.Eq(fields.Author, "DoctorB")
 end)
+
+T.Case("every EditBox disables auto-focus right after creation", function()
+  local files = { "tools/ForeverChatGuardProbe/Probe.lua" }
+  for _, entry in ipairs(entries) do files[#files + 1] = "ForeverChatGuard/" .. entry end
+  for _, file in ipairs(files) do
+    local source = T.ReadFile(T.ROOT .. "/" .. file)
+    local position = 1
+    while true do
+      local start, finish = source:find('CreateFrame%(%s*"EditBox"', position)
+      if not start then
+        start, finish = source:find('"EditBox"', position, true)
+        if not start then break end
+      end
+      local after = source:sub(finish, finish + 400)
+      T.Ok(after:find("SetAutoFocus(false)", 1, true), "EditBox without SetAutoFocus(false) in " .. file)
+      position = finish + 1
+    end
+  end
+end)

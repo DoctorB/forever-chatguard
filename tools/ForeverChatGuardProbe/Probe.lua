@@ -128,8 +128,12 @@ local function filter(chatFrame, event, ...)
   return false
 end
 
+-- Test widgets live in a hidden holder: a visible EditBox with the default
+-- auto-focus would capture all keyboard input (seen on 2026-10-14).
 local function probeTemplates()
   local result = {}
+  local holder = CreateFrame("Frame", nil, UIParent)
+  holder:Hide()
   for _, spec in ipairs({
     { "Button", "UIPanelButtonTemplate" },
     { "CheckButton", "UICheckButtonTemplate" },
@@ -137,8 +141,15 @@ local function probeTemplates()
     { "Frame", "BasicFrameTemplateWithInset" },
     { "Frame", "BackdropTemplate" },
   }) do
-    local ok = pcall(CreateFrame, spec[1], nil, UIParent, spec[2])
+    local ok, widget = pcall(CreateFrame, spec[1], nil, holder, spec[2])
     result[spec[2]] = ok
+    if ok and widget then
+      if spec[1] == "EditBox" then
+        widget:SetAutoFocus(false)
+        widget:ClearFocus()
+      end
+      widget:Hide()
+    end
   end
   return result
 end

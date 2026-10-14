@@ -197,6 +197,8 @@ function Panel.Build(runtime)
 
   frame.widgets = w
   frame:SetScript("OnShow", function() Panel.Refresh() end)
+  -- Never keep keyboard focus once the panel is closed.
+  frame:SetScript("OnHide", function() w.termBox:ClearFocus() end)
   store:OnChange(function()
     if frame:IsShown() then Panel.Refresh() end
   end)
