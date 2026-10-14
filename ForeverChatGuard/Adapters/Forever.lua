@@ -254,6 +254,11 @@ function Adapter:BuildMessage(event, ...)
   local playerGuid = type(env.UnitGUID) == "function" and env.UnitGUID("player") or nil
   local isSelf = (authorKey ~= nil and authorKey == self:PlayerKey())
     or (type(guid) == "string" and guid ~= "" and guid == playerGuid and not isSecret(env, playerGuid))
+  -- Session-only manual test switch (/fcg testself): own messages are judged
+  -- like anyone else's, so a player alone in a private channel can test rules.
+  if self.testSelf then
+    isSelf = false
+  end
 
   local eventId
   if self.caps.lineIdVerified and type(lineID) == "number" then

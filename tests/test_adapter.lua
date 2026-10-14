@@ -343,3 +343,17 @@ T.Case("unexpected channel list shapes are ignored", function()
   local runtime = ns.Adapters.Forever.Start(env)
   T.Eq(#runtime.adapter:ChannelList(), 2, "only Say and Yell")
 end)
+
+T.Case("testself judges own messages for the session only, never persisted", function()
+  local ns, env, runtime = start()
+  runtime.store:SelectChannel("say", "Say")
+  local out = {}
+  ns.UI.Commands.Execute(runtime, "testself on", function(line) out[#out + 1] = line end)
+  env.fire("CHAT_MSG_SAY", "ciao test", "Me", "", "", "Me", "", 0, 0, "", 7, 200, "Player-1-0001")
+  env.fire("CHAT_MSG_SAY", "ciao test", "Me", "", "", "Me", "", 0, 0, "", 7, 201, "Player-1-0001")
+  T.Eq(runtime.engine.counters.wouldSuppress, 1)
+  for key in pairs(runtime.db) do T.NotOk(key:lower():find("test"), "persisted " .. key) end
+  ns.UI.Commands.Execute(runtime, "testself off", function() end)
+  env.fire("CHAT_MSG_SAY", "ciao test", "Me", "", "", "Me", "", 0, 0, "", 7, 202, "Player-1-0001")
+  T.Eq(runtime.engine.counters.wouldSuppress, 1, "own message passes again")
+end)

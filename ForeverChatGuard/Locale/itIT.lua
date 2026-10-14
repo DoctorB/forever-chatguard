@@ -105,6 +105,8 @@ local T = {
   ERR_NAME_INVALID = "usa Nome o Nome-Reame",
   ERR_RANGE = "intervallo ammesso %d-%d",
 
+  TESTSELF_ON = "Modalità test: i tuoi messaggi sono valutati come quelli degli altri (solo in questa sessione). /fcg testself off per uscire.",
+  TESTSELF_OFF = "Modalità test disattivata: i tuoi messaggi passano sempre.",
   PANEL_STATUS = "Stato",
   PANEL_RULES = "Regole",
   PANEL_MY_TERMS = "I miei termini",

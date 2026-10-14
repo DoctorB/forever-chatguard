@@ -101,6 +101,8 @@ local L = {
   ERR_NAME_INVALID = "use Name or Name-Realm",
   ERR_RANGE = "allowed range %d-%d",
 
+  TESTSELF_ON = "Test mode: your own messages are judged like everyone else's (this session only). /fcg testself off to stop.",
+  TESTSELF_OFF = "Test mode off: your own messages always pass.",
   PANEL_STATUS = "Status",
   PANEL_RULES = "Rules",
   PANEL_MY_TERMS = "My terms",

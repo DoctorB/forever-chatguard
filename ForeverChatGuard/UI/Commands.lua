@@ -76,6 +76,9 @@ function Commands.StatusLines(runtime, options)
   if not engine.capabilities.stateful then
     lines[#lines + 1] = l.STATUS_STATEFUL_OFF
   end
+  if adapter.testSelf then
+    lines[#lines + 1] = l.TESTSELF_ON
+  end
   if engine.breakerTripped then
     lines[#lines + 1] = l.STATUS_BREAKER
   end
@@ -362,6 +365,12 @@ handlers.flood = function(runtime, args, out)
   end
   local f = runtime.db.flood
   out(format(l.FLOOD_MSG, f.enabled and l.ON or l.OFF, f.maxMessages, f.windowSeconds))
+end
+
+handlers.testself = function(runtime, args, out)
+  local l = L()
+  runtime.adapter.testSelf = args[2] == "on"
+  out(runtime.adapter.testSelf and l.TESTSELF_ON or l.TESTSELF_OFF)
 end
 
 function Commands.Execute(runtime, input, out)
