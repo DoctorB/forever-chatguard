@@ -1,0 +1,126 @@
+# Setup, publishing and recovery: docs/releasing.md
+# One upload mechanism only: this workflow. No CurseForge packaging webhook.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  # Controlled restart for the SAME existing tag after a transient failure.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to resume, e.g. v0.1.0
+        required: true
+      confirm_curseforge_checked:
+        description: I checked the CurseForge Files page and this version is NOT there
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  # Per-version lock: two runs for one version never overlap.
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Runs only for the repository owner; checked before any runner or secret.
+    if: >-
+      github.repository == 'DoctorB/forever-chatguard' &&
+      github.actor == 'DoctorB' && github.triggering_actor == 'DoctorB'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write # create the GitHub release and attach the verified ZIP
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout the exact tagged commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (Node 24)
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y lua5.1
+
+      - name: Repeat all checks on the tagged commit
+        run: |
+          find ForeverChatGuard tools tests -name '*.lua' -print0 | xargs -0 -n1 luac5.1 -p
+          lua5.1 tests/runner.lua
+          lua5.1 tests/bench.lua
+          python3 -B -m unittest discover -s tests -p 'test_release.py' -v
+          python3 -B scripts/check_attribution.py HEAD
+
+      - name: Tag, TOC, runtime and changelog versions agree
+        run: python3 -B scripts/release.py check-version --tag "$TAG"
+
+      - name: Build and verify the package
+        run: python3 -B scripts/release.py package --out release/ci
+
+      - name: Keep verified package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (Node 24)
+        with:
+          name: ForeverChatGuard-${{ env.TAG }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release/ci/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Compatibility gate (docs/compatibility.md)
+        run: python3 -B scripts/release.py check-gate
+
+      - name: Refuse duplicate or ambiguous uploads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRMED: ${{ inputs.confirm_curseforge_checked || false }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > assets.txt; then
+            if grep -qx 'curseforge-receipt.json' assets.txt; then
+              echo "::error::CurseForge receipt already attached: this version was uploaded. Use a new version."
+              exit 1
+            fi
+            if grep -qx 'curseforge-attempt.json' assets.txt && [ "$CONFIRMED" != "true" ]; then
+              echo "::error::An earlier upload attempt has no receipt. Check CurseForge Files first, then rerun with confirmation."
+              exit 1
+            fi
+          fi
+
+      - name: GitHub release with the same verified ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZIP=$(python3 -c "import json;print(json.load(open('release/ci/manifest.json'))['zip'])")
+          NOTES=$(python3 -c "import json;print(json.load(open('release/ci/manifest.json'))['notes'])")
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            mkdir -p existing
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$ZIP" --dir existing
+            cmp "existing/$ZIP" "release/ci/$ZIP" || { echo "::error::Published ZIP differs from this build"; exit 1; }
+          else
+            PRERELEASE=""
+            case "$TAG" in *-*) PRERELEASE="--prerelease" ;; esac
+            gh release create "$TAG" "release/ci/$ZIP" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "Forever ChatGuard $TAG" --notes-file "release/ci/$NOTES" $PRERELEASE
+          fi
+
+      - name: Record the upload attempt before calling CurseForge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '{"tag":"%s","run":"%s","attempt":"%s"}\n' "$TAG" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > curseforge-attempt.json
+          gh release upload "$TAG" curseforge-attempt.json --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Upload to CurseForge
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_PROJECT_ID: ${{ vars.CF_PROJECT_ID }}
+        run: python3 -B scripts/release.py upload --out release/ci
+
+      - name: Attach the CurseForge receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" release/ci/curseforge-receipt.json --repo "$GITHUB_REPOSITORY"

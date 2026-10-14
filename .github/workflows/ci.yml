@@ -1,0 +1,57 @@
+# Checks every push to main and every pull request. Never uploads anywhere:
+# the ZIP is kept only as a short-lived workflow artifact for inspection.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (Node 24)
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y lua5.1
+
+      - name: Lua 5.1 syntax check (addon, probe, tests)
+        run: find ForeverChatGuard tools tests -name '*.lua' -print0 | xargs -0 -n1 luac5.1 -p
+
+      - name: Engine, config, adapter, command and package tests
+        run: lua5.1 tests/runner.lua
+
+      - name: Engine benchmark (10,000 events)
+        run: lua5.1 tests/bench.lua
+
+      - name: Release tooling tests (offline)
+        run: python3 -B -m unittest discover -s tests -p 'test_release.py' -v
+
+      - name: Authorship check (commit metadata and distributed fields)
+        run: python3 -B scripts/check_attribution.py HEAD
+
+      - name: Build test package (no upload)
+        run: python3 -B scripts/release.py package --out release/ci
+
+      - name: Keep test package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (Node 24)
+        with:
+          name: ForeverChatGuard-test-package-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release/ci/
+          if-no-files-found: error
+          retention-days: 14
