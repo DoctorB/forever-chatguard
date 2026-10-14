@@ -186,6 +186,10 @@ def request_json(path, token, data=None, content_type=None, opener=None):
     try:
         with opener.open(request, timeout=60) as response:
             return json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        # Status and path only: remote bodies are never printed.
+        raise ReleaseError(f"CurseForge returned HTTP {error.code} for {'POST' if data else 'GET'} {path}. "
+                           "Check the project's Files page before any retry; no automatic retry was made.") from None
     except (urllib.error.URLError, OSError, ValueError):
         # Remote bodies are not printed: they could echo request headers.
         raise ReleaseError("CurseForge request failed or was ambiguous. Check the project's "
