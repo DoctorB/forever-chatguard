@@ -107,23 +107,25 @@ class ReleaseTests(unittest.TestCase):
             release.upload(self.tmp, self.tmp / "out", "token", "123", opener=opener)
         self.assertEqual(opener.requests, [])
 
-    def test_game_version_requires_unique_forever_type(self):
-        types = [{"id": 1, "name": "WoW Retail"}, {"id": 67408, "name": "WoW Classic"}]
+    def test_game_version_uses_only_the_pinned_forever_type(self):
+        forever = release.FOREVER_VERSION_TYPE
+        versions = [{"id": 5, "gameVersionTypeID": 67408, "name": "1.60.1"}]
         with self.assertRaises(release.ReleaseError):
-            release.forever_game_version(types, [{"id": 5, "gameVersionTypeID": 67408, "name": "1.60.1"}], "1.60.1")
-        types.append({"id": 900, "name": "WoW Forever"})
-        versions = [{"id": 7, "gameVersionTypeID": 900, "name": "1.60.1"},
-                    {"id": 8, "gameVersionTypeID": 67408, "name": "1.60.1"}]
-        self.assertEqual(release.forever_game_version(types, versions, "1.60.1"), 7)
+            release.forever_game_version(versions, "1.60.1")
+        versions.append({"id": 17053, "gameVersionTypeID": forever, "name": "1.60.1"})
+        self.assertEqual(release.forever_game_version(versions, "1.60.1"), 17053)
         with self.assertRaises(release.ReleaseError):
-            release.forever_game_version(types, versions, "1.60.2")
+            release.forever_game_version(versions, "1.60.2")
+        versions.append({"id": 17054, "gameVersionTypeID": forever, "name": "1.60.1"})
+        with self.assertRaises(release.ReleaseError):
+            release.forever_game_version(versions, "1.60.1")
 
     def test_upload_success_writes_receipt_once(self):
         self.open_gate()
         manifest = release.package(self.tmp, self.tmp / "out")
         opener = FakeOpener({
-            "/game/wow/version-types": [{"id": 900, "name": "WoW Forever"}],
-            "/game/wow/versions": [{"id": 7, "gameVersionTypeID": 900, "name": manifest["gameVersion"]}],
+            "/game/wow/versions": [{"id": 7, "gameVersionTypeID": release.FOREVER_VERSION_TYPE,
+                                    "name": manifest["gameVersion"]}],
             "/projects/123/upload-file": {"id": 4242},
         })
         receipt = release.upload(self.tmp, self.tmp / "out", "token", "123", opener=opener)
@@ -153,7 +155,7 @@ class ReleaseTests(unittest.TestCase):
     def test_catalog_is_read_only(self):
         opener = FakeOpener({
             "/game/wow/version-types": [{"id": 900, "name": "WoW Forever", "slug": "wow-forever"}],
-            "/game/wow/versions": [{"id": 7, "gameVersionTypeID": 900, "name": "1.60.1"}],
+            "/game/wow/versions": [{"id": 7, "gameVersionTypeID": release.FOREVER_VERSION_TYPE, "name": "1.60.1"}],
         })
         release.catalog(self.tmp, "token", opener=opener)
         self.assertEqual([r.get_method() for r in opener.requests], ["GET", "GET"])

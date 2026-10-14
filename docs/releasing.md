@@ -12,10 +12,12 @@ byte per byte (SHA-256 nel `manifest.json`).
 1. **Gate di compatibilità superato** in `docs/compatibility.md`: tutti i flag
    `true` e `<!-- release-gate: open -->`, con evidenze. Senza, il workflow si
    ferma prima di creare la release GitHub e prima di contattare CurseForge.
-2. **Progetto CurseForge** creato dall'utente, con categoria e versione di
-   gioco realmente corrispondenti a WoW Forever. Lo script rifiuta di caricare
-   se il catalogo CurseForge non contiene **un solo** tipo di versione "Forever"
-   e **una sola** versione uguale a quella derivata dal TOC (`16001` → `1.60.1`).
+2. **Progetto CurseForge** `1744553`, con categoria e versione di
+   gioco realmente corrispondenti a WoW Forever. Il tipo di versione CurseForge
+   di Forever è fissato nello script (`FOREVER_VERSION_TYPE = 88568`: unico tipo
+   che contiene `1.60.1`, id 17053; confermato dall'utente nel form di upload il
+   2026-10-14). Lo script rifiuta di caricare se quel tipo non contiene **una sola**
+   versione uguale a quella derivata dal TOC (`16001` → `1.60.1`).
    Non si ripiega mai su Classic Era, Hardcore o Retail.
 3. Repository `DoctorB/forever-chatguard`, **Settings → Secrets and variables → Actions**:
    - secret `CF_API_TOKEN`: token di upload CurseForge dell'autore;

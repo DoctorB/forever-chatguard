@@ -196,17 +196,20 @@ def request_json(path, token, data=None, content_type=None, opener=None):
                            "Files page before any retry; no automatic retry was made.") from None
 
 
-def forever_game_version(types, versions, name):
-    """Exactly one version type for WoW Forever and one exact version name."""
-    require(isinstance(types, list) and isinstance(versions, list), "Invalid CurseForge catalog")
-    forever = [t.get("id") for t in types if isinstance(t, dict)
-               and "forever" in str(t.get("name", "")).lower() + str(t.get("slug", "")).lower()]
-    require(len(forever) == 1 and isinstance(forever[0], int),
-            "CurseForge has no unique WoW Forever game version type; refusing to use another flavor")
+# CurseForge game version type for WoW Forever. Evidence (2026-10-14): the
+# /game/wow/versions catalog lists 1.60.1 (id 17053) as the only version of
+# type 88568, and the project owner confirmed 1.60.1 in the CurseForge upload
+# form. The type-name endpoint is unavailable, so the id is pinned here.
+FOREVER_VERSION_TYPE = 88568
+
+
+def forever_game_version(versions, name):
+    """Exactly one version of the pinned Forever type with the exact name."""
+    require(isinstance(versions, list), "Invalid CurseForge version catalog")
     matches = [v.get("id") for v in versions if isinstance(v, dict)
-               and v.get("gameVersionTypeID") == forever[0] and v.get("name") == name]
-    require(len(matches) == 1 and isinstance(matches[0], int),
-            f"No unique WoW Forever game version {name}; refusing to guess")
+               and v.get("gameVersionTypeID") == FOREVER_VERSION_TYPE and v.get("name") == name]
+    require(len(matches) == 1 and isinstance(matches[0], int) and matches[0] > 0,
+            f"No unique WoW Forever game version {name} (type {FOREVER_VERSION_TYPE}); refusing to guess")
     return matches[0]
 
 
@@ -232,9 +235,7 @@ def upload(root, out, token, project_id, opener=None):
     receipt_path = out / "curseforge-receipt.json"
     require(not receipt_path.exists(), "This package already has an upload receipt")
     versions = request_json("/game/wow/versions", token, opener=opener)
-    types = version_types(token, opener)
-    require(isinstance(types, list), "CurseForge version types unavailable; refusing to guess the game flavor")
-    version_id = forever_game_version(types, versions, manifest["gameVersion"])
+    version_id = forever_game_version(versions, manifest["gameVersion"])
     version = manifest["version"]
     release_type = "alpha" if "-alpha." in version else ("beta" if "-beta." in version else "release")
     notes = (out / manifest["notes"]).read_text(encoding="utf-8")
@@ -295,9 +296,9 @@ def catalog(root, token, opener=None):
     report(f"Versions named 1.60.* or mentioning Forever ({len(candidates)}):")
     for item in candidates:
         report(f"- {item.get('id')}: {item.get('name')} (type {item.get('gameVersionTypeID')})")
-    if isinstance(types, list):
+    if True:
         try:
-            version_id = forever_game_version(types, versions, game_version)
+            version_id = forever_game_version(versions, game_version)
             report(f"Upload target resolved: WoW Forever {game_version} -> game version id {version_id}.")
         except ReleaseError as error:
             report(f"Upload target NOT resolved for {game_version}: {error}")
