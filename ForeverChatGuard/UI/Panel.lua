@@ -1,8 +1,10 @@
 -- Settings panel (spec §11). Built lazily on /fcg config from basic frame
 -- widgets only; no protected actions, so it is safe to open in combat.
 -- Every switch goes through Config.Store, the single validation path.
--- Widget templates are client details: if one is missing the panel is not
--- built and /fcg status keeps working (integration not verified in game).
+--
+-- Layout: one left column at PAD; every element is placed by Layout() with
+-- a running vertical cursor using the measured height of its text, so
+-- wrapped help lines can never overlap the next row or leave the frame.
 local _, ns = ...
 
 local Normalize = ns.Core.Normalize
@@ -11,13 +13,23 @@ local Commands = ns.UI.Commands
 local Panel = {}
 ns.UI.Panel = Panel
 
-local WIDTH, HEIGHT = 460, 520
+local WIDTH = 500
+local PAD = 20
+local TOP = 34                 -- below the template title bar
+local BOTTOM = 52              -- room for the bottom buttons
+local CONTENT = WIDTH - 2 * PAD
+local CHECK = 26               -- checkbox size
+local INDENT = CHECK + 4       -- label/help column next to a checkbox
+local MAX_CHANNELS = 12
+local CHANNEL_COLUMNS = 2
 
-local function label(parent, text, template)
-  local fs = parent:CreateFontString(nil, "OVERLAY", template or "GameFontHighlightSmall")
+local function fontString(parent, template, width)
+  local fs = parent:CreateFontString(nil, "OVERLAY", template)
   fs:SetJustifyH("LEFT")
-  fs:SetWidth(WIDTH - 40)
-  fs:SetText(text)
+  fs:SetJustifyV("TOP")
+  fs:SetWidth(width)
+  if fs.SetWordWrap then fs:SetWordWrap(true) end
+  if fs.SetSpacing then fs:SetSpacing(2) end
   return fs
 end
 
@@ -29,32 +41,40 @@ local function button(parent, text, width, onClick)
   return b
 end
 
--- Checkbox with its explanation underneath (text, not colour, carries state).
-local function toggle(parent, anchor, text, help, getter, setter)
-  local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-  check:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -6)
-  local title = label(check, text, "GameFontNormal")
-  title:SetPoint("LEFT", check, "RIGHT", 2, 0)
-  title:SetWidth(WIDTH - 80)
-  local note = label(parent, help)
-  note:SetPoint("TOPLEFT", check, "BOTTOMLEFT", 30, 2)
-  note:SetWidth(WIDTH - 80)
-  check:SetScript("OnClick", function(self)
-    setter(self:GetChecked() and true or false)
-    Panel.Refresh()
-  end)
-  check.Sync = function()
-    check:SetChecked(getter())
+local function place(region, frame, x, y)
+  region:ClearAllPoints()
+  region:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -y)
+end
+
+local function textHeight(fs)
+  local text = fs:GetText()
+  if not text or text == "" then return 0 end
+  return math.ceil(fs:GetStringHeight())
+end
+
+local function displayList(keys)
+  local L = ns.L
+  local shown = {}
+  for index = 1, #keys do
+    shown[index] = Normalize.EscapeForDisplay(keys[index])
   end
-  return check, note
+  return #shown > 0 and table.concat(shown, ", ") or L.NONE
+end
+
+local function sortedKeys(map)
+  local keys = {}
+  for key in pairs(map) do keys[#keys + 1] = key end
+  table.sort(keys)
+  return keys
 end
 
 function Panel.Build(runtime)
   local L = ns.L
   local store, db = runtime.store, runtime.db
   local frame = CreateFrame("Frame", "ForeverChatGuardPanel", UIParent, "BasicFrameTemplateWithInset")
-  frame:SetSize(WIDTH, HEIGHT)
+  frame:SetSize(WIDTH, 600)
   frame:SetPoint("CENTER")
+  frame:SetClampedToScreen(true)
   frame:SetMovable(true)
   frame:EnableMouse(true)
   frame:RegisterForDrag("LeftButton")
@@ -63,20 +83,26 @@ function Panel.Build(runtime)
   frame:SetFrameStrata("DIALOG")
   frame:Hide()
   if type(UISpecialFrames) == "table" then
-    -- Escape closes the panel.
-    table.insert(UISpecialFrames, "ForeverChatGuardPanel")
+    table.insert(UISpecialFrames, "ForeverChatGuardPanel") -- Escape closes
+  end
+  if frame.TitleText then
+    frame.TitleText:SetText(L.ADDON_TITLE)
+  else
+    local title = fontString(frame, "GameFontNormal", CONTENT)
+    title:SetPoint("TOP", 0, -6)
+    title:SetJustifyH("CENTER")
+    title:SetText(L.ADDON_TITLE)
   end
 
-  local title = label(frame, L.ADDON_TITLE, "GameFontNormalLarge")
-  title:SetPoint("TOPLEFT", 16, -32)
+  local w = {}
+  w.statusHeader = fontString(frame, "GameFontNormal", CONTENT)
+  w.statusHeader:SetText(L.PANEL_STATUS)
+  w.status = fontString(frame, "GameFontHighlightSmall", CONTENT)
 
-  local status = label(frame, "")
-  status:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-  frame.status = status
+  w.rulesHeader = fontString(frame, "GameFontNormal", CONTENT)
+  w.rulesHeader:SetText(L.PANEL_RULES)
 
-  local checks = {}
-  local anchor = status
-  local items = {
+  local toggles = {
     { L.PANEL_ENABLED, L.PANEL_ENABLED_HELP,
       function() return db.enabled end,
       function(v) if v then runtime.engine:ResetBreaker() end store:SetEnabled(v) end },
@@ -95,52 +121,83 @@ function Panel.Build(runtime)
     { L.PANEL_FLOOD, L.PANEL_FLOOD_HELP,
       function() return db.flood.enabled end,
       function(v) store:SetFlood(v, nil, nil) end },
-    { L.PANEL_TERMS, L.PANEL_TERMS_HELP .. " " .. L.TERM_NOTE,
+    { L.PANEL_TERMS, L.PANEL_TERMS_HELP,
       function() return db.customTerms.enabled end,
       function(v) store:SetTermsEnabled(v) end },
   }
-  for index = 1, #items do
-    local item = items[index]
-    local check, note = toggle(frame, anchor, item[1], item[2], item[3], item[4])
-    checks[#checks + 1] = check
-    anchor = note
+  w.toggles = {}
+  for index = 1, #toggles do
+    local spec = toggles[index]
+    local check = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+    check:SetSize(CHECK, CHECK)
+    local label = fontString(frame, "GameFontNormal", CONTENT - INDENT)
+    label:SetText(spec[1])
+    local help = fontString(frame, "GameFontHighlightSmall", CONTENT - INDENT)
+    help:SetText(spec[2])
+    check:SetScript("OnClick", function(self)
+      spec[4](self:GetChecked() and true or false)
+      Panel.Refresh()
+    end)
+    w.toggles[index] = { check = check, label = label, help = help, get = spec[3] }
   end
-  frame.checks = checks
 
-  local termBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-  termBox:SetSize(250, 22)
-  termBox:SetAutoFocus(false)
-  termBox:SetMaxBytes(ns.Core.Defaults.LIMITS.maxRuleBytes + 1)
-  termBox:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -24, -12)
-  local addTerm = button(frame, L.PANEL_TERM_ADD, 140, function()
-    Commands.Execute(runtime, "term add " .. (termBox:GetText() or ""), ns.Print)
-    termBox:SetText("")
-    termBox:ClearFocus()
+  w.termsHeader = fontString(frame, "GameFontNormal", CONTENT)
+  w.termsHeader:SetText(L.PANEL_MY_TERMS)
+  w.termsNote = fontString(frame, "GameFontHighlightSmall", CONTENT)
+  w.termsNote:SetText(L.TERM_NOTE)
+  local addWidth = 120
+  w.termBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+  w.termBox:SetSize(CONTENT - addWidth - 16, 22)
+  w.termBox:SetAutoFocus(false)
+  w.termBox:SetMaxBytes(ns.Core.Defaults.LIMITS.maxRuleBytes + 1)
+  w.addTerm = button(frame, L.PANEL_TERM_ADD, addWidth, function()
+    Commands.Execute(runtime, "term add " .. (w.termBox:GetText() or ""), ns.Print)
+    w.termBox:SetText("")
+    w.termBox:ClearFocus()
     Panel.Refresh()
   end)
-  addTerm:SetPoint("LEFT", termBox, "RIGHT", 10, 0)
-  termBox:SetScript("OnEnterPressed", function() addTerm:Click() end)
-  termBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  w.termBox:SetScript("OnEnterPressed", function() w.addTerm:Click() end)
+  w.termBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  w.termsList = fontString(frame, "GameFontHighlightSmall", CONTENT)
 
-  local channelsTitle = label(frame, L.PANEL_CHANNELS, "GameFontNormal")
-  channelsTitle:SetPoint("TOPLEFT", termBox, "BOTTOMLEFT", -4, -12)
-  local channels = label(frame, "")
-  channels:SetPoint("TOPLEFT", channelsTitle, "BOTTOMLEFT", 0, -4)
-  frame.channels = channels
+  w.channelsHeader = fontString(frame, "GameFontNormal", CONTENT)
+  w.channelsHeader:SetText(L.PANEL_CHANNELS)
+  w.channelsHint = fontString(frame, "GameFontHighlightSmall", CONTENT)
+  w.channelsHint:SetText(L.PANEL_CHANNELS_HINT)
+  w.channels = {}
+  local columnWidth = CONTENT / CHANNEL_COLUMNS
+  for index = 1, MAX_CHANNELS do
+    local check = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+    check:SetSize(CHECK, CHECK)
+    local label = fontString(frame, "GameFontHighlight", columnWidth - INDENT - 6)
+    if label.SetWordWrap then label:SetWordWrap(false) end
+    check:SetScript("OnClick", function(self)
+      local item = self.item
+      if not item then return end
+      if self:GetChecked() then
+        store:SelectChannel(item.key, item.label)
+      else
+        store:UnselectChannel(item.key)
+      end
+      Panel.Refresh()
+    end)
+    w.channels[index] = { check = check, label = label }
+  end
 
-  local details = label(frame, "")
-  details:SetPoint("TOPLEFT", channels, "BOTTOMLEFT", 0, -10)
-  frame.details = details
+  w.authorsHeader = fontString(frame, "GameFontNormal", CONTENT)
+  w.authorsHeader:SetText(L.PANEL_AUTHORS)
+  w.authors = fontString(frame, "GameFontHighlightSmall", CONTENT)
 
-  local quarantine = button(frame, L.PANEL_QUARANTINE, 140, function()
+  w.quarantine = button(frame, L.PANEL_QUARANTINE, 140, function()
     if ns.UI.Quarantine then ns.UI.Quarantine.Show(runtime) end
   end)
-  quarantine:SetPoint("BOTTOMLEFT", 16, 14)
-  local close = button(frame, L.PANEL_CLOSE, 100, function() frame:Hide() end)
-  close:SetPoint("BOTTOMRIGHT", -16, 14)
+  w.quarantine:SetPoint("BOTTOMLEFT", PAD - 4, 16)
+  w.close = button(frame, L.PANEL_CLOSE, 110, function() frame:Hide() end)
+  w.close:SetPoint("BOTTOMRIGHT", -(PAD - 4), 16)
 
+  frame.widgets = w
   frame:SetScript("OnShow", function() Panel.Refresh() end)
-  runtime.store:OnChange(function()
+  store:OnChange(function()
     if frame:IsShown() then Panel.Refresh() end
   end)
   Panel.frame = frame
@@ -148,34 +205,98 @@ function Panel.Build(runtime)
   return frame
 end
 
+-- Positions every element from the top with a running cursor.
+local function layout(frame)
+  local w = frame.widgets
+  local y = TOP + 6
+  local function text(fs, x, gapAfter)
+    place(fs, frame, x, y)
+    y = y + textHeight(fs) + (gapAfter or 0)
+  end
+
+  text(w.statusHeader, PAD, 4)
+  text(w.status, PAD, 14)
+
+  text(w.rulesHeader, PAD, 6)
+  for index = 1, #w.toggles do
+    local row = w.toggles[index]
+    place(row.check, frame, PAD - 4, y - 4)
+    place(row.label, frame, PAD + INDENT, y)
+    y = y + textHeight(row.label) + 2
+    place(row.help, frame, PAD + INDENT, y)
+    y = y + math.max(textHeight(row.help), CHECK - textHeight(row.label) - 6) + 10
+  end
+  y = y + 4
+
+  text(w.termsHeader, PAD, 4)
+  text(w.termsNote, PAD, 6)
+  place(w.termBox, frame, PAD + 6, y) -- the template draws its border outside
+  w.addTerm:ClearAllPoints()
+  w.addTerm:SetPoint("TOPRIGHT", frame, "TOPLEFT", WIDTH - PAD, -y)
+  y = y + 28
+  text(w.termsList, PAD, 14)
+
+  text(w.channelsHeader, PAD, 4)
+  text(w.channelsHint, PAD, 6)
+  local columnWidth = CONTENT / CHANNEL_COLUMNS
+  local shown = 0
+  for index = 1, #w.channels do
+    local slot = w.channels[index]
+    if slot.item then
+      local column = shown % CHANNEL_COLUMNS
+      local rowY = y + math.floor(shown / CHANNEL_COLUMNS) * CHECK
+      place(slot.check, frame, PAD - 4 + column * columnWidth, rowY)
+      place(slot.label, frame, PAD + INDENT + column * columnWidth, rowY + 6)
+      shown = shown + 1
+    end
+  end
+  y = y + math.ceil(shown / CHANNEL_COLUMNS) * CHECK + 12
+
+  text(w.authorsHeader, PAD, 4)
+  text(w.authors, PAD, 0)
+
+  frame:SetHeight(y + BOTTOM)
+end
+
 function Panel.Refresh()
   local frame, runtime = Panel.frame, Panel.runtime
   if not frame then return end
   local L = ns.L
-  frame.status:SetText(table.concat(Commands.StatusLines(runtime), "\n"))
-  for index = 1, #frame.checks do
-    frame.checks[index].Sync()
+  local w = frame.widgets
+  local db = runtime.db
+
+  w.status:SetText(table.concat(Commands.StatusLines(runtime, { compact = true }), "\n"))
+  for index = 1, #w.toggles do
+    local row = w.toggles[index]
+    row.check:SetChecked(row.get() and true or false)
   end
-  local lines = {}
-  for index, item in ipairs(runtime.adapter:ChannelList()) do
-    lines[#lines + 1] = string.format("%d: %s%s", index,
-      Normalize.EscapeForDisplay(item.label or item.key), item.selected and " [x]" or "")
-  end
-  lines[#lines + 1] = "/fcg channel add <n>  /fcg channel remove <n>"
-  frame.channels:SetText(table.concat(lines, "\n"))
+
   local terms = {}
-  for _, entry in ipairs(runtime.db.customTerms.list) do
-    terms[#terms + 1] = Normalize.EscapeForDisplay(entry.text)
+  for _, entry in ipairs(db.customTerms.list) do
+    terms[#terms + 1] = entry.text
   end
-  local allow, block = {}, {}
-  for key in pairs(runtime.db.allowlist) do allow[#allow + 1] = Normalize.EscapeForDisplay(key) end
-  for key in pairs(runtime.db.blocklist) do block[#block + 1] = Normalize.EscapeForDisplay(key) end
-  table.sort(allow)
-  table.sort(block)
-  frame.details:SetText(string.format("%s: %s\n%s: %s\n%s: %s",
-    L.PANEL_TERMS, #terms > 0 and table.concat(terms, ", ") or L.NONE,
-    L.LIST_ALLOW, #allow > 0 and table.concat(allow, ", ") or L.NONE,
-    L.LIST_BLOCK, #block > 0 and table.concat(block, ", ") or L.NONE))
+  w.termsList:SetText(string.format(L.PANEL_TERMS_LIST, displayList(terms)))
+
+  local items = runtime.adapter:ChannelList()
+  for index = 1, #w.channels do
+    local slot, item = w.channels[index], items[index]
+    slot.item = item
+    slot.check.item = item
+    if item then
+      slot.label:SetText(Normalize.EscapeForDisplay(item.label or item.key))
+      slot.check:SetChecked(item.selected and true or false)
+      slot.check:Show()
+      slot.label:Show()
+    else
+      slot.check:Hide()
+      slot.label:Hide()
+    end
+  end
+
+  w.authors:SetText(string.format(L.PANEL_ALLOWED, displayList(sortedKeys(db.allowlist)))
+    .. "\n" .. string.format(L.PANEL_BLOCKED, displayList(sortedKeys(db.blocklist))))
+
+  layout(frame)
 end
 
 function Panel.Toggle(runtime)

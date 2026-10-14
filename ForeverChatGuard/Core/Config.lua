@@ -53,14 +53,15 @@ function Config.ValidateTermText(text)
   return trimmed
 end
 
--- Author keys are "Name-Realm". The adapter qualifies bare names with the
--- player's realm before calling this; validation only bounds the string.
+-- Author keys are "Name-Realm". On WoW Forever a name may hold a first name
+-- and a surname ("Name Surname", verified 2026-10-14), so single inner spaces
+-- are kept. The adapter qualifies bare names with the player's realm first.
 function Config.ValidateAuthorKey(key)
   if type(key) ~= "string" then
     return nil
   end
-  local value = Normalize.Identity(key, LIMITS.maxIdentityBytes)
-  if not value or find(value, "[%s|]") then
+  local value = Normalize.Identity(Normalize.CollapseSpace(key), LIMITS.maxIdentityBytes)
+  if not value or find(value, "|", 1, true) then
     return nil
   end
   return value

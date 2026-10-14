@@ -105,6 +105,7 @@ local SUITES = {
   "test_config",
   "test_adapter",
   "test_commands",
+  "test_panel",
   "test_package",
 }
 

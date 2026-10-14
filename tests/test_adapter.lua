@@ -91,7 +91,7 @@ end
 
 local ALL_VERIFIED = { filterApi = true, payload = true, lineId = true, eventFrame = true }
 
-T.Case("default compatibility flags are all unverified and match the docs", function()
+T.Case("compatibility flags match the docs", function()
   local ns = T.LoadAddon()
   local verified = ns.Adapters.Forever.COMPAT.verified
   local doc = T.ReadFile(T.ROOT .. "/docs/compatibility.md")
@@ -267,7 +267,8 @@ T.Case("realm-less names are qualified with the player realm", function()
   local _, _, runtime = start()
   T.Eq(runtime.adapter:QualifyName("Bob"), "Bob-Realm")
   T.Eq(runtime.adapter:QualifyName("Bob-Other"), "Bob-Other")
-  T.Eq(runtime.adapter:QualifyName("Bad Name"), nil)
+  T.Eq(runtime.adapter:QualifyName("Uorriora  Uorrior"), "Uorriora Uorrior-Realm")
+  T.Eq(runtime.adapter:QualifyName("Bad|Name"), nil)
 end)
 
 T.Case("events outside the public scope are not eligible", function()
@@ -299,4 +300,46 @@ T.Case("slash command registered once", function()
   ns.UI.Commands.Register(env)
   T.Eq(env.SLASH_FOREVERCHATGUARD1, "/fcg")
   T.Eq(type(env.SlashCmdList.FOREVERCHATGUARD), "function")
+end)
+
+-- Payload shape observed on 1.60.1.70374 (probe, 2026-10-14): 18 arguments,
+-- author without realm containing one space, zoneChannelID 0 for Say.
+T.Case("Forever Say payload with a surname is analysed", function()
+  local _, env, runtime = start()
+  runtime.store:SelectChannel("say", "Say")
+  local function say(text, line)
+    env.fire("CHAT_MSG_SAY", text, "Uorriora Uorrior", "", "", "Uorriora Uorrior", "", 0, 0, "", 7,
+      line, "Player-4618-01732DD6", nil, false, false, false, false, {})
+  end
+  say("ciao test", 100)
+  say("ciao test", 101)
+  T.Eq(runtime.engine.counters.invalid, 0)
+  T.Eq(runtime.engine.counters.wouldSuppress, 1)
+  local entry = runtime.engine.quarantine:List(env.now)[1]
+  T.Eq(entry.authorKey, "Uorriora Uorrior-Realm")
+end)
+
+T.Case("joined channels are discovered from the client list", function()
+  local ns = T.LoadAddon()
+  local env = newClient()
+  env.GetChannelList = function() return 1, "General", false, 2, "Trade", false, 6, "fcgprobetest", false end
+  env.C_ChatInfo = { GetChannelInfoFromIdentifier = function(name)
+    local ids = { General = 1, Trade = 2, fcgprobetest = 0 }
+    return { name = name, zoneChannelID = ids[name] }
+  end }
+  local runtime = ns.Adapters.Forever.Start(env)
+  local keys = {}
+  for _, item in ipairs(runtime.adapter:ChannelList()) do keys[item.key] = item.label end
+  T.Eq(keys["zone:1"], "General")
+  T.Eq(keys["zone:2"], "Trade")
+  T.Eq(keys["custom:fcgprobetest"], "fcgprobetest")
+end)
+
+T.Case("unexpected channel list shapes are ignored", function()
+  local ns = T.LoadAddon()
+  local env = newClient()
+  env.GetChannelList = function() return { "weird" } end
+  env.C_ChatInfo = { GetChannelInfoFromIdentifier = function() error("no") end }
+  local runtime = ns.Adapters.Forever.Start(env)
+  T.Eq(#runtime.adapter:ChannelList(), 2, "only Say and Yell")
 end)

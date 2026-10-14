@@ -52,7 +52,8 @@ function Commands.FormatEntry(entry, fullText)
     Commands.FormatReason(entry))
 end
 
-function Commands.StatusLines(runtime)
+-- options.compact drops the diagnostic counters (panel view).
+function Commands.StatusLines(runtime, options)
   local l = L()
   local db, engine, adapter = runtime.db, runtime.engine, runtime.adapter
   local lines = {}
@@ -69,7 +70,9 @@ function Commands.StatusLines(runtime)
   end
   local c = engine.counters
   lines[#lines + 1] = format(l.STATUS_COUNTERS, c.evaluated, c.allowed, c.suppressed, c.wouldSuppress)
-  lines[#lines + 1] = format(l.STATUS_DIAGNOSTICS, c.oversized, c.unreadable, c.engineErrors, c.cachedCallbacks)
+  if not (options and options.compact) then
+    lines[#lines + 1] = format(l.STATUS_DIAGNOSTICS, c.oversized, c.unreadable, c.engineErrors, c.cachedCallbacks)
+  end
   if not engine.capabilities.stateful then
     lines[#lines + 1] = l.STATUS_STATEFUL_OFF
   end
@@ -174,8 +177,13 @@ handlers.config = function(runtime, _, out)
   end
 end
 
-handlers.quarantine = function(runtime, _, out)
+handlers.quarantine = function(runtime, args, out)
   local l = L()
+  -- The window is the main view; "/fcg quarantine list" prints in chat.
+  if args[2] ~= "list" and ns.UI.Quarantine and ns.UI.Quarantine.Show
+    and ns.UI.Quarantine.Show(runtime) then
+    return
+  end
   local entries = runtime.engine.quarantine:List(runtime.engine.clock())
   if #entries == 0 then
     out(l.QUARANTINE_EMPTY)
@@ -184,9 +192,6 @@ handlers.quarantine = function(runtime, _, out)
   out(l.QUARANTINE_HEADER)
   for index = 1, math.min(#entries, 20) do
     out(Commands.FormatEntry(entries[index], false))
-  end
-  if ns.UI.Quarantine and ns.UI.Quarantine.Show then
-    ns.UI.Quarantine.Show(runtime)
   end
 end
 

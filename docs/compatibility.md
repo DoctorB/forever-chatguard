@@ -1,9 +1,9 @@
 # Compatibilità con WoW Forever
 
-Stato: **integrazione non verificata**. Il gate del client (spec §3) non è
-superato: nessuna release installabile può essere pubblicata.
+Stato: **integrazione parzialmente verificata**. Il gate del client (spec §3)
+non è ancora superato: nessuna release installabile può essere pubblicata.
 
-<!-- compat: filterApi=false payload=false lineId=false eventFrame=false -->
+<!-- compat: filterApi=true payload=false lineId=false eventFrame=true -->
 <!-- release-gate: closed -->
 
 I due commenti sopra sono letti da `tests/test_adapter.lua` e da
@@ -11,67 +11,67 @@ I due commenti sopra sono letti da `tests/test_adapter.lua` e da
 `Adapter.COMPAT.verified` in `ForeverChatGuard/Adapters/Forever.lua`, e va
 portato a `true` solo insieme all'evidenza registrata in questo file.
 
+## Sessioni di verifica
+
+| Data | Build | Metodo | Esecutore |
+| --- | --- | --- | --- |
+| 2026-10-14 | 1.60.1.70374 (`GetBuildInfo`, compilata il 12 ottobre 2026) | Probe `tools/ForeverChatGuardProbe` 0.1.0 + ChatGuard 0.1.0-alpha.1 in osservazione, realm `Classic Beta PvE`, personaggio di livello 10, fuori istanza, client enUS | proprietario del progetto; file `ForeverChatGuardProbe.lua` e screenshot del pannello letti da ChatGuard |
+
 ## Target
 
 | Voce | Valore | Stato | Evidenza |
 | --- | --- | --- | --- |
-| Prodotto | WoW Forever, client beta `wow_classic_beta` | verificato (installazione) | `World of Warcraft\.build.info`: Product `wow_classic_beta`, Version `1.60.1.70338`, branch `eu` (letto il 2026-10-14) |
-| Identità "Forever" | game type Forever nel client beta | indiziato, non verificato da ChatGuard | Analisi HC One Button `docs/FOREVER_FEASIBILITY.md` (2026-10-13): stringhe `Forever`, `C_GameRules.SetForeverExperiencePreset` nel binario `WowB.exe` |
-| Realm usato in beta | `Classic Beta PvE`, realm build 1.60.1.70249 | verificato (log) | `_classic_beta_\Logs\General.log` del 2026-10-13 |
-| Build client | 1.60.1.70338 | verificato (installazione) | `.build.info` |
-| Interface TOC | `16001` | verificato da un altro addon sulla stessa build | Probe HC One Button eseguito in gioco su 1.60.1.70338 il 2026-10-13: Interface `16001`, `WOW_PROJECT_ID` 18, addon di terze parti caricati |
-| Runtime Lua | presumibilmente 5.1 (motore moderno) | non verificato | Il probe ChatGuard registra `_VERSION`, `goto`, `//`, operatori bitwise |
-| Restrizioni addon | combat log vietato; HP/potere secret anche fuori combattimento | verificato da HC One Button | `docs/FOREVER_FEASIBILITY.md` (HC One Button), sezione "Esito" |
+| Prodotto | WoW Forever, client beta `wow_classic_beta` | verificato | `.build.info`; probe: `WOW_PROJECT_ID` 18 |
+| Build client | 1.60.1.70374 | verificato | Probe 2026-10-14 (la build 70338 letta prima in `.build.info` è stata aggiornata) |
+| Interface TOC | `16001` | verificato | Probe: `GetBuildInfo()` → 16001; entrambi gli addon caricati con quel valore |
+| Runtime Lua | Lua 5.1: niente `goto`, `//`, operatori bitwise; libreria `bit` presente, `utf8` assente | verificato | Probe `lua` |
+| Restrizioni addon | stati `C_RestrictedActions` 0–5 tutti `false` al login e durante i messaggi | verificato fuori istanza | Probe `restrictionsAtLoad`, `samples[].restrictions` |
+| Restrizioni combattimento | combat log vietato; HP/potere secret | verificato da HC One Button | `hc-one-button/docs/FOREVER_FEASIBILITY.md` |
 
 ## Capability chat
 
-| Capability | Flag | Stato | Note |
+| Capability | Flag | Stato | Evidenza / limite |
 | --- | --- | --- | --- |
-| Filtro messaggi chat (`ChatFrame_AddMessageEventFilter` o `ChatFrameUtil.AddMessageEventFilter`) | `filterApi` | non verificato | Candidati rilevati a runtime. Serve: esistenza, firma, `true` nasconde in tutte le finestre, `false` senza altri valori preserva gli argomenti, nessun `ADDON_ACTION_FORBIDDEN` |
-| Payload `CHAT_MSG_CHANNEL/SAY/YELL` | `payload` | non verificato | Layout candidato (client moderni): 1 text, 2 author "Nome-Reame", 7 zoneChannelID, 9 channelBaseName, 11 lineID, 12 GUID. **Rischio principale:** con lo stack Midnight il testo può essere *secret*; in quel caso ChatGuard non può analizzarlo |
-| Identità consegna (`lineID`) | `lineId` | non verificato | Deve essere unica per messaggio nella sessione e identica in tutte le callback delle finestre chat. Senza, in modalità filtro le regole duplicati/raffiche restano disattivate |
-| Consegna evento a frame addon (`RegisterEvent`) | `eventFrame` | non verificato | Percorso di sola osservazione: un `OnEvent` per evento, contabilità esatta anche senza `lineID` |
-| Identità canale | — | non verificato | Chiave `zone:<zoneChannelID>` o `custom:<nome base>`; mai il numero visibile |
-| Messaggi propri | — | non verificato | `UnitName("player")` + `GetNormalizedRealmName()` o GUID |
-| Slash command, SavedVariables | — | non verificato | Il probe verifica la persistenza (`loads` incrementa dopo `/reload`) |
-| Template UI (`UIPanelButtonTemplate`, `UICheckButtonTemplate`, `InputBoxTemplate`, `BasicFrameTemplateWithInset`) | — | non verificato | Il pannello degrada a output testuale se manca un template |
+| Filtro messaggi | `filterApi` | **verificato** (Say, una finestra) | `ChatFrame_AddMessageEventFilter`/`Remove...` e `ChatFrameUtil.AddMessageEventFilter`/`Remove...` presenti. Registrazione su `CHAT_MSG_CHANNEL`, `SAY`, `YELL` → `ok`, nessun `ADDON_ACTION_FORBIDDEN/BLOCKED`. `return true` ha nascosto `fcgprobe-hide tre` (assente nella chat dello screenshot); `return false` senza altri valori ha lasciato visibili e invariate le righe `fcgprobe-pass` |
+| Payload `CHAT_MSG_SAY` | `payload` (parziale) | verificato | 18 argomenti. 1 testo `string` non secret; 2 autore `string` non secret, **senza reame e con uno spazio** (nome + cognome, es. `Uorriora Uorrior`); 5 autore ripetuto; 7 zoneChannelID `0`; 8 `0`; 9 `""`; 10 languageID `7`; 11 lineID `number`; 12 GUID `Player-…`; 13 `number`; 14–17 `boolean`; 18 `table` |
+| Payload `CHAT_MSG_CHANNEL` | `payload` | **non verificato** | Nessun messaggio di canale catturato: i messaggi di prova sono andati in Say. Serve per zoneChannelID, channelBaseName e chiavi canale |
+| Payload `CHAT_MSG_YELL` | — | non verificato | — |
+| Identità consegna (`lineID`) | `lineId` (parziale) | unicità verificata | Valori 6, 7, 8, 9, 36 tutti distinti, anche per due testi identici (7 e 8). **Da verificare:** stesso `lineID` per tutte le callback quando più finestre chat mostrano il canale (catturata una sola finestra, `ChatFrame1`) |
+| Consegna a frame addon | `eventFrame` | **verificato** | Un `OnEvent` per messaggio (`frameEvents = 1` per ogni linea) |
+| Valori secret nella chat | — | assenti fuori istanza | Nessun argomento secret in 5 campioni. Istanze/encounter non provati |
+| API canali | — | presenti, forma non verificata | `GetChannelList`, `GetChannelName`, `C_ChatInfo.GetChannelInfoFromIdentifier`, `C_ChatInfo.GetChannelShortcut` sono funzioni. L'adapter le usa con controlli di tipo e ripiega sui canali visti nei messaggi |
+| Template UI | — | **verificato** | `UIPanelButtonTemplate`, `UICheckButtonTemplate`, `InputBoxTemplate`, `BasicFrameTemplateWithInset`, `BackdropTemplate` creati senza errori |
+| Slash command, SavedVariables | — | **verificato** | `/fcg` e `/fcgprobe` risposti; `ForeverChatGuard.lua` e `ForeverChatGuardProbe.lua` scritti dal client in `WTF\Account\<account>\SavedVariables\` |
+| Altre API | — | presenti | `issecretvalue`, `canaccessvalue`, `canaccesstable`, `GetTime`, `GetTimePreciseSec`, `UnitName`, `UnitGUID`, `GetNormalizedRealmName`, `C_Timer`, `Settings`, `UISpecialFrames`, `InCombatLockdown`, `date` |
 
 Legenda: **verificato** = osservato sul client target con il metodo indicato;
 **assente** = cercato e non trovato; **non verificato** = non ancora provato.
 I test offline usano mock e non sono prova di compatibilità.
 
-## Comportamento attuale senza verifica
+## Correzioni nate dalla verifica
 
-- Filtro: **mai registrato**. `/fcg filter` viene rifiutato con spiegazione.
-- Osservazione: se `CreateFrame` esiste, ChatGuard osserva via frame eventi
-  dei soli canali selezionati (nessuno al primo avvio). Nulla viene nascosto.
+- Nomi autore con spazio (nome + cognome) accettati; chiave `Nome Cognome-Reame`
+  (prima venivano rifiutati e ogni messaggio risultava non analizzabile).
+- Layout del pannello ricostruito (allineamento, testo dentro la cornice,
+  canali selezionabili con checkbox); controllato da `tests/test_panel.lua`.
+
+## Comportamento attuale
+
+- Filtro: non registrato finché `payload` non è verificato anche per i canali.
+  `/fcg filter` viene rifiutato con spiegazione.
+- Osservazione via frame eventi sui soli canali selezionati.
 - Valori secret: messaggio ignorato, contatore `unreadable`, nessun errore.
-- Etichetta di stato in gioco: «integrazione non verificata».
 
-## Come superare il gate
+## Prove mancanti per aprire il gate
 
-1. Copiare `tools/ForeverChatGuardProbe/` in
-   `World of Warcraft\_classic_beta_\Interface\AddOns\` (senza ChatGuard attivo).
-2. Entrare con un personaggio, `/join fcgprobetest` (canale privato, nessuno spam).
-3. Nel canale privato inviare: `fcgprobe-pass uno`, poi due volte
-   `fcgprobe-pass due` (testo identico), poi `fcgprobe-hide tre`.
-   Annotare: le righe `pass` sono visibili e invariate in ogni finestra chat?
-   La riga `hide` è assente in tutte le finestre?
-4. Aprire una seconda finestra chat che mostri lo stesso canale e ripetere.
-5. Facoltativo: lo stesso in un'istanza (dungeon) per rilevare valori secret.
-6. `/fcgprobe` per il riepilogo, poi `/reload` (scrive il file) e `/fcgprobe`
-   ancora (deve risultare `loads 2`).
-7. Fornire `WTF\Account\<account>\SavedVariables\ForeverChatGuardProbe.lua`:
-   contiene solo tipi, flag secret, lunghezze e ID numerici, nessun testo o nome.
-
-Con i risultati si compila la tabella sopra (data, build, metodo), si
-aggiornano i flag in entrambi i punti e il pannello mostrerà «verificata».
+1. Messaggi `fcgprobe-pass …` e `fcgprobe-hide …` inviati **nel canale**
+   `fcgprobetest` (scrivendo `/<numero del canale> testo`, non in Say).
+2. Lo stesso con **due finestre chat** che mostrano quel canale.
+3. `/reload` e `/fcgprobe` (`loads 2`).
+4. Facoltativo: un messaggio in un'istanza per i valori secret.
 
 ## Limiti noti
 
-- Beta mobile: API e restrizioni possono cambiare a ogni build; ripetere il
-  probe a ogni build importante e aggiornare questa pagina.
-- Anche con il filtro verificato, ChatGuard non può analizzare messaggi i cui
-  argomenti siano secret: in quei contesti la chat resta invariata.
-- Nessuna compatibilità dichiarata con altri addon chat finché non provata
-  (checklist manuale, voce 11).
+- Beta mobile: ripetere il probe a ogni build importante.
+- Dove gli argomenti sono secret la chat resta invariata.
+- Nessuna compatibilità dichiarata con altri addon chat finché non provata.

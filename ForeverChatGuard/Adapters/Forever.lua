@@ -17,13 +17,13 @@ ns.Adapters.Forever = Adapter
 -- In-game evidence recorded in docs/compatibility.md. Only flip a flag to
 -- true together with the evidence; tests assert both stay in sync.
 Adapter.COMPAT = {
-  build = "1.60.1.70338",
+  build = "1.60.1.70374",
   interface = 16001,
   verified = {
-    filterApi = false,       -- ChatFrame message filter: exists, signature, hide semantics
-    payload = false,         -- CHAT_MSG_* argument layout and readability (not secret)
-    lineId = false,          -- per-delivery identity shared by all chat-window callbacks
-    eventFrame = false,      -- RegisterEvent delivery of CHAT_MSG_* to an addon frame
+    filterApi = true,        -- ChatFrame message filter: exists, signature, hide semantics
+    payload = false,         -- CHAT_MSG_* layout/readability: Say verified, channels not yet
+    lineId = false,          -- unique per line verified; sharing across windows not yet
+    eventFrame = true,       -- RegisterEvent delivery of CHAT_MSG_* to an addon frame
   },
 }
 
@@ -132,10 +132,12 @@ function Adapter:Realm()
 end
 
 -- Name or Name-Realm -> Name-Realm. Realm-less names get the player's realm.
+-- Forever chat authors arrive without realm and may contain one space
+-- ("Name Surname"); the realm suffix keeps keys distinct across realms.
 function Adapter:QualifyName(name)
   if type(name) ~= "string" then return nil end
-  name = Normalize.Identity(name, LIMITS.maxIdentityBytes)
-  if not name or string.find(name, "[%s|]") then return nil end
+  name = Normalize.Identity(Normalize.CollapseSpace(name), LIMITS.maxIdentityBytes)
+  if not name or string.find(name, "|", 1, true) then return nil end
   if string.find(name, "-", 1, true) then
     return name
   end
@@ -151,8 +153,40 @@ function Adapter:RememberChannel(key, label)
   self.seenChannels[key] = label
 end
 
+-- Joined channels from the client list. GetChannelList and
+-- C_ChatInfo.GetChannelInfoFromIdentifier exist on 1.60.1.70374 (probe);
+-- their return shapes are not verified, so anything unexpected is ignored
+-- and the list falls back to channels seen through messages.
+function Adapter:DiscoverJoinedChannels()
+  local env = self.env
+  local list, info = env.GetChannelList, type(env.C_ChatInfo) == "table" and env.C_ChatInfo.GetChannelInfoFromIdentifier
+  if type(list) ~= "function" or type(info) ~= "function" then return end
+  local ok, values = pcall(function() return { list() } end)
+  if not ok or type(values) ~= "table" then return end
+  for index = 1, #values, 3 do
+    local name = values[index + 1]
+    if type(name) == "string" and name ~= "" and not isSecret(env, name) then
+      local okInfo, channel = pcall(info, name)
+      if okInfo and type(channel) == "table" then
+        local zoneID = channel.zoneChannelID
+        local key
+        if type(zoneID) == "number" and zoneID > 0 then
+          key = "zone:" .. zoneID
+        elseif type(zoneID) == "number" then
+          key = "custom:" .. Normalize.LowerASCII(name)
+        end
+        key = key and Normalize.Identity(key, LIMITS.maxIdentityBytes)
+        if key and not self.seenChannels[key] then
+          self:RememberChannel(key, Normalize.Identity(name, LIMITS.maxIdentityBytes) or key)
+        end
+      end
+    end
+  end
+end
+
 function Adapter:ChannelList()
   local L = ns.L
+  pcall(self.DiscoverJoinedChannels, self)
   local result = {
     { key = "say", label = L.CHANNEL_SAY },
     { key = "yell", label = L.CHANNEL_YELL },

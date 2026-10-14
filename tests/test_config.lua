@@ -75,7 +75,7 @@ T.Case("invalid fields are repaired individually", function()
       { id = 4, text = "OK" },
       "not a table",
     } },
-    allowlist = { ["Bad Name-Realm"] = true, ["Good-Realm"] = true, ["Other-Realm"] = "yes" },
+    allowlist = { ["Bad|Name-Realm"] = true, ["Good-Realm"] = true, ["Other-Realm"] = "yes" },
     blocklist = "nope",
     quarantine = { maxEntries = 10, ttlSeconds = 120 },
     ui = { x = 10, bad = {} },
@@ -95,7 +95,7 @@ T.Case("invalid fields are repaired individually", function()
   T.Eq(#db.customTerms.list, 1, "only the first valid unique term survives")
   T.Eq(db.customTerms.list[1].text, "ok")
   T.Eq(db.allowlist["Good-Realm"], true)
-  T.Eq(db.allowlist["Bad Name-Realm"], nil)
+  T.Eq(db.allowlist["Bad|Name-Realm"], nil)
   T.Eq(db.allowlist["Other-Realm"], nil)
   T.Eq(next(db.blocklist), nil)
   T.Eq(db.quarantine.maxEntries, 200)
@@ -207,9 +207,11 @@ T.Case("reset restores defaults in place", function()
   T.Ok(store.db == db)
 end)
 
-T.Case("author names with spaces or pipes are rejected", function()
+T.Case("Forever names with a surname are accepted; pipes rejected", function()
   local store = Config.NewStore(Defaults.NewDB())
-  T.NotOk(store:SetListed("allowlist", "Bad Name-Realm", true))
+  local ok, key = store:SetListed("allowlist", "  Uorriora   Uorrior-Realm ", true)
+  T.Ok(ok)
+  T.Eq(key, "Uorriora Uorrior-Realm")
   T.NotOk(store:SetListed("allowlist", "Pipe|cff-Realm", true))
   T.NotOk(store:SetListed("nolist", "A-B", true))
   T.Ok(store:SetListed("allowlist", "Àlice-Realm", true))
