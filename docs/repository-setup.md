@@ -1,39 +1,49 @@
 # Impostazioni repository: confronto con HC One Button
 
-Modello: `DoctorB/hc-one-button` (identificato dal remoto del checkout locale
-`C:\Work\hc-one-button` e dall'addon installato, `## Author: DoctorB`).
-Destinazione: `DoctorB/forever-chatguard`. Nessun valore sensibile in questo file.
+Modello: `DoctorB/hc-one-button` (remoto del checkout locale
+`C:\Work\hc-one-button`; addon installato con `## Author: DoctorB`), letto
+in sola lettura. Destinazione: `DoctorB/forever-chatguard`.
+Lettura via API REST con `gh` autenticato come `DoctorB` il 2026-10-14.
+Nessun valore sensibile in questo file: dei secret si leggono solo i nomi.
 
-Stato: **incompleto**. Le impostazioni remote non sono ancora state lette:
-in questo ambiente manca una CLI GitHub autenticata (`gh` non installato) e
-l'uso del token di Git Credential Manager per chiamate API è stato bloccato
-dal controllo dei permessi della sessione. La colonna "osservato" contiene solo
-quanto ricavabile dai file del modello; il resto va letto via API.
-
-| Impostazione | Osservato nel modello | Desiderato per Forever ChatGuard | Rilevato dopo la modifica | Differenza / motivo |
+| Impostazione | Osservato nel modello | Desiderato per Forever ChatGuard | Rilevato (2026-10-14) | Differenza / motivo |
 | --- | --- | --- | --- | --- |
-| Visibilità | da leggere | invariata (non si cambia per imitare il modello) | da leggere | — |
-| Branch predefinito | `main` (checkout locale) | `main` | `main` (`git ls-remote`) | — |
-| Collaboratori/team | da leggere; il workflow cita `DoctorB` e `DrCalibano` | solo gli accessi effettivamente decisi per il nuovo progetto | da leggere | `DrCalibano` non viene invitato né autorizzato solo perché compare nel workflow del modello |
-| GitHub Actions abilitate | sì (workflow presente e usato) | sì | da leggere | — |
-| Action consentite | da leggere | action pinnate a SHA (`actions/checkout` v7.0.1, `actions/upload-artifact` v7.0.1, stessi SHA del modello) | — | — |
-| Permessi predefiniti `GITHUB_TOKEN` | da leggere; workflow con `contents: read` | read; `contents: write` solo nel job di release | da leggere | La release GitHub con ZIP richiede `contents: write` nel solo job `release` |
-| Creazione/approvazione PR da Actions | da leggere | disattivata (non usata) | da leggere | — |
-| Protezione branch / ruleset | da leggere | come il modello; check obbligatorio rinominato `checks` (job CI) | da leggere | — |
-| Regole su tag e release | da leggere | come il modello | da leggere | — |
-| Environment di rilascio | nessuno (secret di repository, da `docs/RELEASING.md` del modello) | nessuno, come il modello | — | — |
-| Secret CurseForge | `CF_API_TOKEN` (repository secret) | `CF_API_TOKEN` (repository secret) | da creare | Valore non recuperabile dal modello: va impostato dall'utente |
-| Variabile progetto | ID fisso nello script del modello | `CF_PROJECT_ID` (repository variable) | da creare | Mai copiare l'ID di HC One Button |
-| Allowlist attori del workflow | `DoctorB`, `DrCalibano` | `DoctorB` | — | Ridotta finché non è deciso l'accesso di altri |
-| Webhook / GitHub App / deploy key / runner | da leggere | solo se necessari: nessuno previsto | da leggere | Upload via Actions, nessun webhook CurseForge |
+| Visibilità | public | invariata | public | — (non si cambia per imitare il modello) |
+| Branch predefinito | `main` | `main` | `main` | — |
+| Collaboratori | `DoctorB` admin, `DrCalibano` write | da decidere dal proprietario | `DoctorB` admin | **Aperta:** invitare `DrCalibano` è una decisione dell'utente; non viene fatta per imitazione |
+| Team | nessuno | nessuno | nessuno | — |
+| Inviti pendenti | nessuno | nessuno | nessuno | — |
+| GitHub Actions | abilitate, tutte le action consentite, SHA pinning non obbligatorio | uguale | uguale | — (i workflow fissano comunque le action a SHA) |
+| Permessi predefiniti `GITHUB_TOKEN` | `read` | `read` | `read` | — ; solo il job `release` chiede `contents: write` |
+| Approvazione PR da Actions | disattivata | disattivata | disattivata | — |
+| Accesso workflow da altri repo | n/a (repo pubblico) | n/a | n/a | — |
+| Protezione branch `main` | nessuna | come il modello | nessuna | — |
+| Ruleset (branch/tag) | nessuno | come il modello | nessuno | — |
+| Environment | nessuno | nessuno | nessuno | — |
+| Secret Actions | `CF_API_TOKEN` | `CF_API_TOKEN` | **assente** | Valore non leggibile dal modello: va impostato dall'utente con il token CurseForge |
+| Variabili Actions | nessuna (ID nello script) | `CF_PROJECT_ID` | **assente** | Richiede il progetto CurseForge di Forever ChatGuard; mai l'ID di HC One Button |
+| Webhook | nessuno | nessuno | nessuno | Nessun webhook di packaging CurseForge |
+| Deploy key | nessuna | nessuna | nessuna | — |
+| Runner self-hosted | nessuno | nessuno | nessuno | — |
+| Secret scanning / push protection | attivi | attivi | attivi | — |
+| Dependabot security updates | disattivati | come il modello | disattivati | — |
+| Merge (merge/squash/rebase), auto-merge, delete branch | tutti consentiti; auto-merge e delete branch disattivati | uguale | uguale | — |
+| Installazioni GitHub App | non elencabili con un token OAuth | — | non elencabili | Vincolo API: va controllato in Settings → Integrations |
+| Allowlist attori nel workflow di rilascio | `DoctorB`, `DrCalibano` | `DoctorB` | `DoctorB` | Allineabile se `DrCalibano` riceve accesso |
 
-## Da fare per completare il confronto
+## Verifica dei permessi effettivi
 
-1. Rendere disponibile una CLI autenticata, ad esempio:
-   `winget install GitHub.cli` e poi `! gh auth login` nella sessione.
-2. Leggere modello e destinazione:
-   `gh api repos/DoctorB/hc-one-button`, `.../collaborators`, `.../actions/permissions`,
-   `.../actions/permissions/workflow`, `.../branches/main/protection`, `.../rulesets`,
-   `.../environments`, `.../actions/secrets` (solo nomi), `.../actions/variables`, `.../hooks`.
-3. Applicare le differenze pertinenti a `DoctorB/forever-chatguard`, rileggere e
-   compilare la colonna "rilevato".
+- Push su `main` con l'identità dell'utente: riuscito (`6ae82ef..2120917`).
+- CI con `GITHUB_TOKEN` in sola lettura: verde (run 38540825261).
+- Rilascio: non provato; resta bloccato dal gate di compatibilità e dal secret mancante.
+  Nessuna operazione distruttiva usata come prova.
+
+## Interventi rimasti all'utente
+
+1. Decidere se invitare `DrCalibano` (write, come nel modello). In quel caso
+   va aggiunto anche all'allowlist di `.github/workflows/release.yml`.
+2. Creare il secret `CF_API_TOKEN` (Settings → Secrets and variables → Actions),
+   ad esempio con `gh secret set CF_API_TOKEN --repo DoctorB/forever-chatguard`
+   in un terminale proprio: il valore viene chiesto senza eco, mai in chat.
+3. Dopo la creazione del progetto CurseForge:
+   `gh variable set CF_PROJECT_ID --repo DoctorB/forever-chatguard --body <id>`.
