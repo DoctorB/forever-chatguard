@@ -231,8 +231,9 @@ def upload(root, out, token, project_id, opener=None):
     verify_archive(archive_path, manifest["files"])
     receipt_path = out / "curseforge-receipt.json"
     require(not receipt_path.exists(), "This package already has an upload receipt")
-    types = request_json("/game/wow/version-types", token, opener=opener)
     versions = request_json("/game/wow/versions", token, opener=opener)
+    types = version_types(token, opener)
+    require(isinstance(types, list), "CurseForge version types unavailable; refusing to guess the game flavor")
     version_id = forever_game_version(types, versions, manifest["gameVersion"])
     version = manifest["version"]
     release_type = "alpha" if "-alpha." in version else ("beta" if "-beta." in version else "release")
@@ -254,27 +255,52 @@ def upload(root, out, token, project_id, opener=None):
     return receipt
 
 
+TYPE_ENDPOINTS = ("/game/wow/version-types", "/game/version-types")
+
+
+def version_types(token, opener=None):
+    """First type catalog endpoint that answers; None when none is available."""
+    for path in TYPE_ENDPOINTS:
+        try:
+            return request_json(path, token, opener=opener)
+        except ReleaseError as error:
+            if "HTTP 404" not in str(error):
+                raise
+    return None
+
+
 def catalog(root, token, opener=None):
     """Read-only: reports which CurseForge game versions could match Forever."""
     require(token and token.strip(), "Missing CF_API_TOKEN secret")
     game_version = version_info(root)[2]
-    types = request_json("/game/wow/version-types", token, opener=opener)
     versions = request_json("/game/wow/versions", token, opener=opener)
-    require(isinstance(types, list) and isinstance(versions, list), "Invalid CurseForge catalog")
-    report(f"Version types ({len(types)}):")
-    for item in types:
-        if isinstance(item, dict):
-            report(f"- {item.get('id')}: {item.get('name')} ({item.get('slug')})")
+    require(isinstance(versions, list), "Invalid CurseForge version catalog")
+    types = version_types(token, opener)
+    if isinstance(types, list):
+        report(f"Version types ({len(types)}):")
+        for item in types:
+            if isinstance(item, dict):
+                report(f"- {item.get('id')}: {item.get('name')} ({item.get('slug')})")
+    else:
+        report("No version-type catalog endpoint answered; type ids from the version list:")
+        counts = {}
+        for item in versions:
+            if isinstance(item, dict):
+                key = item.get("gameVersionTypeID")
+                counts.setdefault(key, []).append(str(item.get("name")))
+        for key, names in sorted(counts.items(), key=lambda kv: str(kv[0])):
+            report(f"- type {key}: {len(names)} versions, latest {', '.join(sorted(names)[-3:])}")
     candidates = [v for v in versions if isinstance(v, dict)
                   and (str(v.get("name", "")).startswith("1.60") or "forever" in str(v).lower())]
     report(f"Versions named 1.60.* or mentioning Forever ({len(candidates)}):")
     for item in candidates:
         report(f"- {item.get('id')}: {item.get('name')} (type {item.get('gameVersionTypeID')})")
-    try:
-        version_id = forever_game_version(types, versions, game_version)
-        report(f"Upload target resolved: WoW Forever {game_version} -> game version id {version_id}.")
-    except ReleaseError as error:
-        report(f"Upload target NOT resolved for {game_version}: {error}")
+    if isinstance(types, list):
+        try:
+            version_id = forever_game_version(types, versions, game_version)
+            report(f"Upload target resolved: WoW Forever {game_version} -> game version id {version_id}.")
+        except ReleaseError as error:
+            report(f"Upload target NOT resolved for {game_version}: {error}")
     report("Read-only check: nothing was uploaded.")
 
 
