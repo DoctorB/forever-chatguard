@@ -2,6 +2,7 @@
 import importlib.util
 import io
 import json
+import os
 import re
 from pathlib import Path
 import shutil
@@ -43,11 +44,15 @@ class FakeOpener:
 
 class ReleaseTests(unittest.TestCase):
     def setUp(self):
+        # Mock uploads must never reach the real workflow run summary.
+        self.summary = os.environ.pop("GITHUB_STEP_SUMMARY", None)
         self.tmp = Path(tempfile.mkdtemp())
         copy_repo(self.tmp)
 
     def tearDown(self):
         shutil.rmtree(self.tmp)
+        if self.summary is not None:
+            os.environ["GITHUB_STEP_SUMMARY"] = self.summary
 
     def set_gate(self, flags, marker):
         path = self.tmp / "docs" / "compatibility.md"
