@@ -239,7 +239,22 @@ handlers.reset = function(runtime, args, out)
   end
 end
 
-handlers.channel = function(runtime, args, out)
+-- add/remove accept the list number or the channel name (case-insensitive).
+local function findChannel(list, wanted)
+  local index = tonumber(wanted)
+  if index then
+    return list[index]
+  end
+  wanted = Normalize.LowerASCII(Normalize.CollapseSpace(wanted or ""))
+  for _, item in ipairs(list) do
+    if wanted ~= "" and Normalize.LowerASCII(item.label or item.key) == wanted then
+      return item
+    end
+  end
+  return nil
+end
+
+handlers.channel = function(runtime, args, out, input)
   local l = L()
   local list = runtime.adapter:ChannelList()
   local sub = args[2] or "list"
@@ -253,9 +268,10 @@ handlers.channel = function(runtime, args, out)
     end
     return
   end
-  local item = list[tonumber(args[3] or "") or 0]
+  local wanted = rest(input, 2)
+  local item = findChannel(list, wanted)
   if not item then
-    reportError(out, tostring(args[3] or ""))
+    reportError(out, Normalize.EscapeForDisplay(wanted))
     return
   end
   if sub == "add" then

@@ -8,6 +8,7 @@
 -- use it in a private custom channel (/join fcgprobetest), never in public.
 --
 -- /fcgprobe          print a summary
+-- /fcgprobe auto     guided test: then press F9 step by step
 -- /fcgprobe reset    clear the recorded data
 -- Data is written to WTF/.../SavedVariables/ForeverChatGuardProbe.lua on /reload or logout.
 local ADDON = ...
@@ -244,9 +245,183 @@ frame:SetScript("OnEvent", function(_, event, ...)
   end
 end)
 
+---------------------------------------------------------------------------
+-- Guided test (/fcgprobe auto). Each F9 press is one hardware event and runs
+-- one step, because the client may only allow one channel message per key
+-- press. Messages go ONLY to the private channel fcgprobetest.
+-- F9 is a temporary override binding: released at the end, never saved.
+---------------------------------------------------------------------------
+local CHANNEL = "fcgprobetest"
+local WINDOW = "Probe"
+local MESSAGES = {
+  "fcgprobe-pass uno", "fcgprobe-pass due", "fcgprobe-pass due",
+  "fcgprobe-hide tre", "ciao test", "ciao test",
+}
+local auto = { step = 0 }
+
+local function chatGuard(command)
+  local handler = SlashCmdList and SlashCmdList.FOREVERCHATGUARD
+  if type(handler) == "function" then
+    local ok, err = pcall(handler, command)
+    if not ok then out("ChatGuard /fcg " .. command .. " failed: " .. tostring(err)) end
+    return ok
+  end
+  out("ChatGuard is not loaded")
+  return false
+end
+
+local function channelIndex()
+  local index = GetChannelName(CHANNEL)
+  if type(index) == "number" and index > 0 then return index end
+  return nil
+end
+
+local function chatGuardHasChannel()
+  local cg = type(ForeverChatGuardDB) == "table" and ForeverChatGuardDB
+  return cg and type(cg.channels) == "table" and cg.channels["custom:" .. CHANNEL] ~= nil
+end
+
+-- Finds or creates the second chat window and shows the channel in it.
+local function ensureWindow()
+  local frame
+  for index = 1, (NUM_CHAT_WINDOWS or 10) do
+    local name = GetChatWindowInfo and GetChatWindowInfo(index)
+    if name == WINDOW then frame = _G["ChatFrame" .. index] end
+  end
+  if not frame and type(FCF_OpenNewWindow) == "function" then
+    local ok, created = pcall(FCF_OpenNewWindow, WINDOW)
+    if ok and type(created) == "table" then frame = created end
+    if not frame then
+      for index = 1, (NUM_CHAT_WINDOWS or 10) do
+        local name = GetChatWindowInfo and GetChatWindowInfo(index)
+        if name == WINDOW then frame = _G["ChatFrame" .. index] end
+      end
+    end
+  end
+  if not frame then return nil, "window not created" end
+  local ok, err
+  if type(ChatFrame_AddChannel) == "function" then
+    ok, err = pcall(ChatFrame_AddChannel, frame, CHANNEL)
+  elseif type(frame.AddChannel) == "function" then
+    ok, err = pcall(frame.AddChannel, frame, CHANNEL)
+  else
+    ok, err = false, "no AddChannel API"
+  end
+  if not ok then return nil, tostring(err) end
+  return frame:GetName()
+end
+
+local function channelLines()
+  local result = {}
+  for key, line in pairs(db.lines) do
+    if key:find("^CHAT_MSG_CHANNEL:") then result[#result + 1] = line end
+  end
+  return result
+end
+
+local function check(label, passed, detail)
+  out((passed and "|cff33ff33OK|r " or "|cffff3333NO|r ") .. label .. (detail and (" (" .. detail .. ")") or ""))
+  db.auto.checks[label] = passed and true or false
+end
+
+local function summary()
+  local samples = db.samples.CHAT_MSG_CHANNEL or {}
+  local first = samples[1]
+  check("channel messages captured", #samples > 0, #samples .. " samples")
+  if first then
+    local a = first.args
+    check("channel text readable (not secret)", a[1] and not a[1].secret)
+    check("channel author readable (not secret)", a[2] and not a[2].secret)
+    check("channelBaseName present", a[9] and a[9].v ~= nil and a[9].v ~= "", a[9] and tostring(a[9].v))
+    check("zoneChannelID is a number", a[7] and a[7].t == "number", a[7] and tostring(a[7].v))
+    check("lineID is a number", a[11] and a[11].t == "number")
+  end
+  local lines = channelLines()
+  local multi, consistent = 0, true
+  for _, line in ipairs(lines) do
+    local windows = 0
+    for _ in pairs(line.windows) do windows = windows + 1 end
+    if windows >= 2 then multi = multi + 1 end
+    if line.filterCalls ~= windows or line.frameEvents ~= 1 then consistent = false end
+  end
+  check("each line seen once by the event frame and once per window", #lines > 0 and consistent, #lines .. " lines")
+  check("same lineID reached two or more windows", multi > 0, multi .. " lines")
+  check("hide request made by the filter", (db.hideRequests or 0) > 0)
+  check("ChatGuard has the channel selected", chatGuardHasChannel())
+  out("Now LOOK: 'fcgprobe-hide tre' must be missing in BOTH windows; 'fcgprobe-pass' lines visible in both.")
+  out("ChatGuard quarantine should list two 'would hide' repeats: 'fcgprobe-pass due' and 'ciao test'.")
+  out("Then /reload, /fcgprobe (expect loads " .. (db.loads + 1) .. "), and log out to save the files.")
+end
+
+-- 1x1, transparent, mouse-disabled: only the F9 binding clicks it.
+local stepButton = CreateFrame("Button", "ForeverChatGuardProbeStep", UIParent)
+stepButton:SetSize(1, 1)
+stepButton:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
+stepButton:EnableMouse(false)
+stepButton:Show()
+
+stepButton:SetScript("OnClick", function()
+  local ok, err = pcall(function()
+    auto.step = auto.step + 1
+    if auto.step == 1 then
+      local name, err2 = ensureWindow()
+      db.auto.window = name or ("failed: " .. tostring(err2))
+      out(name and ("second window " .. name .. " shows " .. CHANNEL .. "; drag its tab out to see both")
+        or ("second window not available: " .. tostring(err2)))
+      chatGuard("channel add " .. CHANNEL)
+      out("F9 again: sends message 1/" .. #MESSAGES)
+      return
+    end
+    local messageIndex = auto.step - 1
+    if messageIndex <= #MESSAGES then
+      local index = channelIndex()
+      if not index then
+        out("not in channel " .. CHANNEL .. " yet; press F9 again in a moment")
+        auto.step = auto.step - 1
+        return
+      end
+      if not chatGuardHasChannel() then
+        chatGuard("channel add " .. CHANNEL) -- known once its first message arrived
+      end
+      SendChatMessage(MESSAGES[messageIndex], "CHANNEL", nil, index)
+      db.auto.sent = messageIndex
+      out(string.format("sent %d/%d: %s%s", messageIndex, #MESSAGES, MESSAGES[messageIndex],
+        messageIndex < #MESSAGES and " - F9 for the next" or " - F9 for the summary"))
+      return
+    end
+    summary()
+    chatGuard("testself off")
+    chatGuard("quarantine")
+    ClearOverrideBindings(stepButton)
+    auto.step = 0
+    out("guided test finished; F9 released")
+  end)
+  if not ok then out("step failed: " .. tostring(err)) end
+end)
+
+local function startAuto()
+  if InCombatLockdown and InCombatLockdown() then
+    out("leave combat first")
+    return
+  end
+  db.auto = { startedAt = date and date("%Y-%m-%d %H:%M:%S"), checks = {} }
+  auto.step = 0
+  if not channelIndex() then
+    JoinChannelByName(CHANNEL)
+  end
+  chatGuard("testself on")
+  chatGuard("dup on")
+  SetOverrideBindingClick(stepButton, true, "F9", "ForeverChatGuardProbeStep")
+  out("guided test ready. Press F9 to continue (8 presses in total). Messages go only to " .. CHANNEL .. ".")
+end
+
 SLASH_FCGPROBE1 = "/fcgprobe"
 SlashCmdList.FCGPROBE = function(input)
   if not db then out("not started") return end
+  if input == "auto" then
+    startAuto()
+    return
+  end
   if input == "reset" then
     ForeverChatGuardProbeDB = nil
     db = nil

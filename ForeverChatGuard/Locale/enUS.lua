@@ -55,7 +55,7 @@ local L = {
     "/fcg show <n> - show the full text of quarantine entry n",
     "/fcg allowentry <n> - allow the author of quarantine entry n",
     "/fcg clear - empty the quarantine",
-    "/fcg channel list / add <n> / remove <n> - choose channels",
+    "/fcg channel list / add <n or name> / remove <n or name> - choose channels",
     "/fcg term add/remove/preview/on/off <text> - literal terms",
     "/fcg allow/block/unallow/unblock <Name-Realm> - author lists",
     "/fcg dup on/off/<5-120>  /fcg flood on/off/<seconds> <messages>",

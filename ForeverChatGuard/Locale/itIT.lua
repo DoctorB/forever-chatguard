@@ -59,7 +59,7 @@ local T = {
     "/fcg show <n> - mostra il testo completo della voce n",
     "/fcg allowentry <n> - consente l'autore della voce n",
     "/fcg clear - svuota la quarantena",
-    "/fcg channel list / add <n> / remove <n> - scegli i canali",
+    "/fcg channel list / add <n o nome> / remove <n o nome> - scegli i canali",
     "/fcg term add/remove/preview/on/off <testo> - termini letterali",
     "/fcg allow/block/unallow/unblock <Nome-Reame> - liste autori",
     "/fcg dup on/off/<5-120>  /fcg flood on/off/<secondi> <messaggi>",
