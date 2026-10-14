@@ -281,8 +281,8 @@ def catalog(root, token, opener=None):
         for item in types:
             if isinstance(item, dict):
                 report(f"- {item.get('id')}: {item.get('name')} ({item.get('slug')})")
-    else:
-        report("No version-type catalog endpoint answered; type ids from the version list:")
+    report("Type ids found in the version list:")
+    if True:
         counts = {}
         for item in versions:
             if isinstance(item, dict):
