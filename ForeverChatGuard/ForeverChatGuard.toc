@@ -1,0 +1,21 @@
+## Interface: 16001
+## Title: Forever ChatGuard
+## Notes: Local, transparent and reversible public chat noise filter for WoW Forever. Starts in observe mode.
+## Notes-itIT: Filtro locale, trasparente e reversibile del rumore nella chat pubblica per WoW Forever. Si avvia in osservazione.
+## Author: DoctorB
+## Version: 0.1.0-alpha.1
+## SavedVariables: ForeverChatGuardDB
+
+Bootstrap.lua
+Locale/enUS.lua
+Locale/itIT.lua
+Core/Defaults.lua
+Core/Normalize.lua
+Core/Config.lua
+Core/Store.lua
+Core/Rules.lua
+Core/Engine.lua
+Adapters/Forever.lua
+UI/Commands.lua
+UI/Panel.lua
+UI/Quarantine.lua

@@ -1,0 +1,132 @@
+-- Italian overrides. Missing keys fall back to English (Locale/enUS.lua).
+local _, ns = ...
+
+local locale = type(GetLocale) == "function" and GetLocale() or ns.forceLocale
+if locale ~= "itIT" then
+  return
+end
+
+local base = ns.LocaleBase
+local T = {
+  ON = "attivo",
+  OFF = "disattivo",
+  YES = "sì",
+  NO = "no",
+  NONE = "nessuno",
+
+  MODE_OBSERVE = "osservazione",
+  MODE_FILTER = "filtro",
+  MODE_OBSERVE_HELP = "Osservazione: non nasconde nulla; ChatGuard elenca solo cosa avrebbe nascosto.",
+  MODE_FILTER_HELP = "Filtro: i messaggi corrispondenti vengono nascosti e restano nella quarantena della sessione.",
+
+  REASON_PASS = "Nessuna regola corrispondente",
+  REASON_DISABLED = "ChatGuard è disattivato",
+  REASON_OUT_OF_SCOPE = "Canale o evento non selezionato",
+  REASON_SELF = "Messaggio tuo",
+  REASON_ALLOWLIST = "Autore nella lista consentiti",
+  REASON_BLOCKLIST = "Autore nella lista bloccati locale",
+  REASON_CUSTOM_TERM = "Contiene il tuo termine \"%s\"",
+  REASON_DUPLICATE = "Stesso autore, stesso testo nello stesso canale entro %d s",
+  REASON_FLOOD = "L'autore ha inviato più di %d messaggi in %d s in questo canale",
+  REASON_INVALID_INPUT = "Messaggio non analizzabile; mostrato invariato",
+  REASON_ENGINE_ERROR = "Errore interno; messaggio mostrato invariato",
+
+  STATUS_HEADER = "Stato",
+  STATUS_LINE = "Attivo: %s - Modalità: %s - Compatibilità: %s",
+  STATUS_CHANNELS = "Canali selezionati: %s",
+  STATUS_COUNTERS = "Valutati %d - consentiti %d - nascosti %d - avrebbe nascosto %d",
+  STATUS_DIAGNOSTICS = "Troppo lunghi %d - illeggibili %d - errori interni %d - callback ripetute %d",
+  STATUS_STATEFUL_OFF = "Regole duplicati e raffiche non disponibili: il client non fornisce un ID messaggio verificato.",
+  STATUS_BREAKER = "Filtro sospeso dopo errori interni ripetuti. Usa /fcg on per riprendere.",
+  STATUS_FUTURE_SCHEMA = "Impostazioni salvate da una versione più recente. ChatGuard resta disattivato e non le sovrascrive.",
+  STATUS_CORRUPT = "Alcune impostazioni salvate non erano valide e sono state riportate a valori sicuri.",
+  STATUS_NO_FILTER_API = "Questo client non espone un filtro chat supportato. La chat resta invariata e il filtro è disattivato.",
+  STATUS_FILTER_NEEDS_CAPABILITY = "La modalità filtro richiede un filtro chat verificato su questo client; resta l'osservazione.",
+  STATUS_NO_CHANNELS = "Nessun canale selezionato: ChatGuard non analizza nulla. Usa /fcg channel list.",
+  STATUS_CONFLICT = "%s è in entrambe le liste; prevale la lista consentiti. Rimuovi una delle due voci.",
+
+  COMPAT_VERIFIED = "verificata",
+  COMPAT_UNVERIFIED = "integrazione non verificata",
+  COMPAT_UNAVAILABLE = "non disponibile",
+
+  HELP_HEADER = "Comandi:",
+  HELP_LINES = {
+    "/fcg status - stato, modalità e compatibilità",
+    "/fcg on / off - attiva o disattiva subito",
+    "/fcg observe / filter - cambia modalità",
+    "/fcg config - apre il pannello",
+    "/fcg quarantine - elenca i messaggi trattenuti o osservati",
+    "/fcg show <n> - mostra il testo completo della voce n",
+    "/fcg allowentry <n> - consente l'autore della voce n",
+    "/fcg clear - svuota la quarantena",
+    "/fcg channel list / add <n> / remove <n> - scegli i canali",
+    "/fcg term add/remove/preview/on/off <testo> - termini letterali",
+    "/fcg allow/block/unallow/unblock <Nome-Reame> - liste autori",
+    "/fcg dup on/off/<5-120>  /fcg flood on/off/<secondi> <messaggi>",
+    "/fcg reset - ripristina i valori predefiniti (chiede conferma)",
+  },
+  TERM_NOTE = "I termini sono letterali e ignorano maiuscole A-Z. Una parola breve corrisponde anche dentro parole più lunghe.",
+  TERM_ADDED = "Termine aggiunto: %s",
+  TERMS_INACTIVE = "I termini personali sono disattivati; attivali con /fcg term on dopo aver controllato l'anteprima.",
+  TERM_REMOVED = "Termine rimosso: %s",
+  TERM_PREVIEW = "Anteprima di \"%s\": %d su %d messaggi recenti in quarantena/osservati corrisponderebbero.",
+  TERMS_ON = "Termini personali attivati.",
+  TERMS_OFF = "Termini personali disattivati.",
+  LIST_ADDED = "%s aggiunto alla lista %s.",
+  LIST_REMOVED = "%s rimosso dalla lista %s.",
+  LIST_ALLOW = "consentiti",
+  LIST_BLOCK = "bloccati",
+  CHANNEL_LIST_HEADER = "Canali visti in questa sessione (indice: nome [selezionato]):",
+  CHANNEL_NONE_SEEN = "Nessun canale pubblico visto finora. Entra in un canale o attendi un messaggio, poi riprova.",
+  CHANNEL_SELECTED = "Canale selezionato: %s",
+  CHANNEL_UNSELECTED = "Canale rimosso: %s",
+  CHANNEL_SAY = "Dire",
+  CHANNEL_YELL = "Urlare",
+  ENABLED_MSG = "ChatGuard attivo (modalità %s).",
+  DISABLED_MSG = "ChatGuard disattivato: tutti i nuovi messaggi passano.",
+  MODE_MSG = "Modalità: %s.",
+  DUP_MSG = "Duplicati: %s, finestra %d s.",
+  FLOOD_MSG = "Raffiche: %s, oltre %d messaggi in %d s.",
+  QUARANTINE_EMPTY = "La quarantena è vuota.",
+  QUARANTINE_HEADER = "Quarantena (più recenti prima):",
+  QUARANTINE_HIDDEN = "nascosto",
+  QUARANTINE_WOULD = "avrebbe nascosto",
+  QUARANTINE_CLEARED = "Quarantena svuotata.",
+  QUARANTINE_ENTRY_MISSING = "Nessuna voce %s in quarantena.",
+  RESET_CONFIRM = "Il ripristino cancella preferenze, termini e liste autori. Scrivi /fcg reset confirm per procedere.",
+  RESET_DONE = "Impostazioni ripristinate (osservazione, nessun canale).",
+  INVALID_VALUE = "Valore non valido: %s",
+  UNKNOWN_COMMAND = "Comando sconosciuto. /fcg help",
+
+  ERR_TERM_EMPTY = "il termine è vuoto",
+  ERR_TERM_TOO_LONG = "il termine supera %d byte",
+  ERR_TERM_LIMIT = "raggiunto il limite di %d regole",
+  ERR_TERM_DUPLICATE = "il termine esiste già",
+  ERR_NAME_INVALID = "usa Nome o Nome-Reame",
+  ERR_RANGE = "intervallo ammesso %d-%d",
+
+  PANEL_ENABLED = "Attiva ChatGuard",
+  PANEL_ENABLED_HELP = "Se disattivo, ogni nuovo messaggio passa invariato.",
+  PANEL_FILTER = "Modalità filtro (nasconde)",
+  PANEL_FILTER_HELP = "Disattivo = osservazione: nulla viene nascosto, le corrispondenze sono solo elencate.",
+  PANEL_DUP = "Nascondi testi ripetuti",
+  PANEL_DUP_HELP = "Stesso autore, stesso canale, stesso testo entro la finestra.",
+  PANEL_FLOOD = "Limita le raffiche",
+  PANEL_FLOOD_HELP = "Stesso autore che invia troppi messaggi in un canale.",
+  PANEL_TERMS = "Usa i miei termini",
+  PANEL_TERMS_HELP = "Parole o frasi letterali aggiunte da te. Nessuna lista predefinita.",
+  PANEL_CHANNELS = "Canali",
+  PANEL_TERM_ADD = "Aggiungi termine",
+  PANEL_QUARANTINE = "Quarantena",
+  PANEL_CLOSE = "Chiudi",
+  PANEL_SHOW_TEXT = "Mostra testo",
+  PANEL_ALLOW_AUTHOR = "Consenti autore",
+  PANEL_PREV = "Precedenti",
+  PANEL_NEXT = "Successivi",
+}
+
+for key, value in pairs(T) do
+  if base[key] ~= nil then
+    base[key] = value
+  end
+end

@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: Forever ChatGuard Probe
+## Notes: Development probe: records chat API capabilities for docs/compatibility.md. Never stores chat text or names.
+## Author: DoctorB
+## Version: 0.1.0
+## SavedVariables: ForeverChatGuardProbeDB
+
+Probe.lua
