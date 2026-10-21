@@ -26,6 +26,7 @@ degli utenti (issue GitHub) e con le versioni successive.
 | 10 | Pannello aperto in combattimento | Nessun `ADDON_ACTION_BLOCKED` | | | **da eseguire** |
 | 11 | Convivenza con un altro addon chat (nome e versione) | Entrambi funzionanti | | | **da eseguire** |
 | 12 | API opzionale assente | Degrado spiegato; chat visibile | — | — | non applicabile su questo client (API presenti); coperto da `tests/test_adapter.lua` |
+| 13 | Icona nella lista AddOns (riavvio completo del client) | Scudo di ChatGuard al posto del punto di domanda | | | **da eseguire** |
 
 Limiti aperti da riportare insieme ai risultati: contesti con argomenti
 secret, comportamento in istanze/encounter, eventuali differenze tra build.

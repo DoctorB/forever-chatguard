@@ -3,6 +3,13 @@
 All notable changes to Forever ChatGuard. Versions follow `MAJOR.MINOR.PATCH`;
 pre-releases carry an explicit `-alpha.N` / `-beta.N` suffix.
 
+## 1.0.1 - 2026-10-21
+
+### New
+
+- **Add-on icon:** the AddOns list at character selection shows the
+  ChatGuard shield instead of the question mark.
+
 ## 1.0.0 - 2026-10-14
 
 **First release for WoW Forever.** Keep public chat readable without losing a

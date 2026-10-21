@@ -74,9 +74,21 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue(all(name.startswith("ForeverChatGuard/") for name in names))
         self.assertIn("ForeverChatGuard/ForeverChatGuard.toc", names)
         self.assertIn("ForeverChatGuard/LICENSE", names)
+        self.assertIn("ForeverChatGuard/Media/icon.tga", names)
         self.assertFalse(any("/tests/" in n or "/docs/" in n or n.endswith(".py") for n in names))
         _, entries = release.toc(self.tmp)
-        self.assertEqual(len(names), len(entries) + 1 + len(release.ROOT_DOCS))
+        self.assertEqual(len(names), len(entries) + 2 + len(release.ROOT_DOCS))
+
+    def test_icon_is_packaged_byte_for_byte(self):
+        manifest = release.package(self.tmp, self.tmp / "out")
+        with zipfile.ZipFile(self.tmp / "out" / manifest["zip"]) as archive:
+            packaged = archive.read("ForeverChatGuard/Media/icon.tga")
+        self.assertEqual(packaged, (ROOT / "ForeverChatGuard" / "Media" / "icon.tga").read_bytes())
+
+    def test_missing_icon_stops(self):
+        (self.tmp / "ForeverChatGuard" / "Media" / "icon.tga").unlink()
+        with self.assertRaises(release.ReleaseError):
+            release.package(self.tmp, self.tmp / "out")
 
     def test_package_is_deterministic(self):
         first = release.package(self.tmp, self.tmp / "a")

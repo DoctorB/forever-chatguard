@@ -63,6 +63,17 @@ def toc(root=ROOT):
     return fields, entries
 
 
+def icon_entry(root=ROOT):
+    """Path inside the addon of the .tga named by ## IconTexture, or None."""
+    fields, _ = toc(root)
+    texture = fields.get("IconTexture")
+    if not texture:
+        return None
+    prefix = f"Interface\\AddOns\\{ADDON}\\"
+    require(texture.startswith(prefix), f"IconTexture outside the addon: {texture}")
+    return texture[len(prefix):].replace("\\", "/") + ".tga"
+
+
 def version_info(root=ROOT):
     fields, entries = toc(root)
     version = fields.get("Version", "")
@@ -109,6 +120,9 @@ def check_gate(root=ROOT):
 
 def package_files(root, entries):
     names = [f"{ADDON}.toc"] + entries
+    icon = icon_entry(root)
+    if icon:
+        names.append(icon)
     result = {}
     addon = root / ADDON
     for name in names:

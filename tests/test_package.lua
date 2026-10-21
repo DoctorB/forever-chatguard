@@ -4,6 +4,7 @@ local entries, fields = T.TocEntries()
 
 T.Case("TOC fields present and version consistent", function()
   T.Eq(fields.Title, "Forever ChatGuard")
+  T.Eq(fields.IconTexture, "Interface\\AddOns\\ForeverChatGuard\\Media\\icon")
   T.Ok(fields.Interface and fields.Interface:match("^%d+$"), "numeric Interface")
   T.Eq(fields.SavedVariables, "ForeverChatGuardDB")
   local ns = T.LoadAddon()
@@ -29,6 +30,17 @@ T.Case("TOC entries exist, are unique and cover every Lua file", function()
     end
   end
   listing:close()
+end)
+
+T.Case("the TOC icon is a 64x64 32-bit TGA with top-left origin", function()
+  local data = T.ReadFile(T.ADDON_DIR .. "/Media/icon.tga")
+  T.Eq(#data, 18 + 64 * 64 * 4 + 26)
+  T.Eq(data:byte(3), 2, "uncompressed true-colour")
+  T.Eq(data:byte(13) + data:byte(14) * 256, 64)
+  T.Eq(data:byte(15) + data:byte(16) * 256, 64)
+  T.Eq(data:byte(17), 32)
+  T.Eq(data:byte(18), 0x28, "8 alpha bits, top-left origin")
+  T.Eq(data:sub(-18), "TRUEVISION-XFILE.\0")
 end)
 
 T.Case("load order: bootstrap, locales, core, adapter, UI", function()

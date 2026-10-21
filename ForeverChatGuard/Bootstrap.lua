@@ -4,7 +4,7 @@
 local addonName, ns = ...
 
 ns.ADDON_NAME = addonName or "ForeverChatGuard"
-ns.VERSION = "1.0.0"
+ns.VERSION = "1.0.1"
 
 -- Session-wide placeholders filled by later files in TOC order.
 ns.Core = ns.Core or {}
