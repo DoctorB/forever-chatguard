@@ -1,7 +1,7 @@
 # Forever ChatGuard: development instructions
 
 Spec: `docs/FOREVER_CHATGUARD_CLAUDE_CODE_SPEC.md` (binding). Target is **only**
-WoW Forever (client `_classic_beta_`, build 1.60.1.x); never assume Retail,
+WoW Forever (client `_forever_`, product `wowf`, build 1.60.1.x); never assume Retail,
 Classic Era or Hardcore APIs.
 
 ## Layout

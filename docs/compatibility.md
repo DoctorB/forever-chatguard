@@ -25,6 +25,7 @@ portato a `true` solo insieme all'evidenza registrata in questo file.
 | Voce | Valore | Stato | Evidenza |
 | --- | --- | --- | --- |
 | Prodotto | WoW Forever, client beta `wow_classic_beta` | verificato | `.build.info`; probe: `WOW_PROJECT_ID` 18 |
+| Client ufficiale | `_forever_`, prodotto `wowf`, build 1.60.1.70790 | installato, prove in gioco da rifare | `.build.info` 2026-11-05; target CurseForge invariato (WoW Forever 1.60.1, id 17053) |
 | Build client | 1.60.1.70374 | verificato | Probe 2026-10-14 (la build 70338 letta prima in `.build.info` è stata aggiornata) |
 | Interface TOC | `16001` | verificato | Probe: `GetBuildInfo()` → 16001; entrambi gli addon caricati con quel valore |
 | Runtime Lua | Lua 5.1: niente `goto`, `//`, operatori bitwise; libreria `bit` presente, `utf8` assente | verificato | Probe `lua` |

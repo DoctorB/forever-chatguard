@@ -3,6 +3,14 @@
 All notable changes to Forever ChatGuard. Versions follow `MAJOR.MINOR.PATCH`;
 pre-releases carry an explicit `-alpha.N` / `-beta.N` suffix.
 
+## 1.0.2 - 2026-11-05
+
+### Changed
+
+- **Live WoW Forever client:** the installation instructions point to the
+  live client folder `World of Warcraft\_forever_\Interface\AddOns\`
+  instead of the beta folder. No change to filtering or settings.
+
 ## 1.0.1 - 2026-10-21
 
 ### New

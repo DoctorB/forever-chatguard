@@ -33,14 +33,14 @@ automatic reports or messages. Chat text is never saved to disk.
 ## Installation
 
 1. Download the ZIP and extract it into
-   `World of Warcraft\_classic_beta_\Interface\AddOns\`, so that the folder
+   `World of Warcraft\_forever_\Interface\AddOns\`, so that the folder
    `ForeverChatGuard\` sits directly inside `AddOns`.
 2. Restart the game or `/reload`. Type `/fcg status`.
 3. Open `/fcg config` and tick the channels to watch (or `/fcg channel add Trade`).
 4. Check `/fcg quarantine` for a while, then switch to filtering with `/fcg filter`.
 
-The `_classic_beta_` folder is where the WoW Forever beta client is installed
-today; the folder for the live game may differ.
+`_forever_` is the folder of the live WoW Forever client (the beta used
+`_classic_beta_`).
 
 ## Commands
 
